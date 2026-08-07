@@ -1,0 +1,737 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ════════════════════════════════════════════════════════════════
+  ESPECIFICACIONES FUNCIONALES — Proyecto Yggdrasil
+  Sistema de Directorio Visual e Interactivo de Enlaces
+  Organización : Cofradia
+  Versión       : 3.1
+  Fecha         : 2026-08-04
+  ════════════════════════════════════════════════════════════════
+-->
+<especificaciones-funcionales
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  proyecto="Yggdrasil"
+  organizacion="Cofradia"
+  version="3.1"
+  fecha="2026-08-04"
+  estado="activo">
+
+  <!-- ══════════════════════════════════════════════════════════
+       1. VISIÓN GENERAL DEL SISTEMA
+  ══════════════════════════════════════════════════════════════ -->
+  <vision-general>
+    <nombre-codigo>Yggdrasil</nombre-codigo>
+    <descripcion>
+      Plataforma web interactiva, moderna y serverless (Jamstack) para la
+      navegación visual y gestión de un directorio dinámico de enlaces.
+      Inspirada de forma sutil, minimalista e implícita en la metáfora
+      jerárquica del árbol Yggdrasil de la mitología nórdica.
+    </descripcion>
+    <paradigma>Jamstack · Serverless · file:// compatible</paradigma>
+    <dependencias-externas>Ninguna — bundle JS único autocontenido</dependencias-externas>
+    <persistencia>localStorage del navegador con exportación JSON manual</persistencia>
+    <compatibilidad-protocolo>
+      <protocolo nombre="file://" soporte="completo" nota="No requiere servidor HTTP"/>
+      <protocolo nombre="http://" soporte="completo"/>
+      <protocolo nombre="https://" soporte="completo"/>
+    </compatibilidad-protocolo>
+
+    <metafora-estructural>
+      <nivel tipo="raiz-tronco" descripcion="Índice central — orquesta el mapa global de plataformas"/>
+      <nivel tipo="ramas-principales" descripcion="Módulos temáticos de primer nivel con miniatura de portada"/>
+      <nivel tipo="sub-ramas" descripcion="Categorías recursivas N-aria (profundidad ilimitada)"/>
+      <nivel tipo="hojas" descripcion="Nodos finales con URL destino, plataforma y miniatura"/>
+    </metafora-estructural>
+  </vision-general>
+
+  <!-- ══════════════════════════════════════════════════════════
+       2. ARQUITECTURA DE DATOS — MODELO MULTI-JSON
+  ══════════════════════════════════════════════════════════════ -->
+  <arquitectura-datos>
+    <descripcion>
+      Cada rama principal reside en su propio archivo JSON independiente
+      para máxima modularidad y soporte de importación/exportación nativa
+      sin conflictos. La carga de datos es incremental (Lazy Loading).
+    </descripcion>
+
+    <estructura-archivos>
+      <archivo ruta="data/index.json" tipo="maestro" rol="Índice general, auditoría y catálogo de plataformas"/>
+      <archivo ruta="data/branches/rama_XX.json" tipo="rama" rol="Datos autocontenidos de cada rama principal"/>
+    </estructura-archivos>
+
+    <esquema-maestro nombre="index.json">
+      <campo nombre="version"         tipo="string"  requerido="true"  descripcion="Versión del esquema de datos (actualmente: 3.0)"/>
+      <campo nombre="organization"    tipo="object"  requerido="true"  descripcion="Nombre y logotipo institucional"/>
+      <campo nombre="audit"           tipo="object"  requerido="true"  descripcion="Registro de última modificación"/>
+      <campo nombre="platformCatalog" tipo="array"   requerido="true"  descripcion="Catálogo global reutilizable de plataformas"/>
+      <campo nombre="mainBranchesIndex" tipo="array" requerido="true"  descripcion="Índice de punteros a archivos JSON de ramas"/>
+    </esquema-maestro>
+
+    <esquema-rama nombre="rama_XX.json">
+      <campo nombre="branchId"    tipo="string"  requerido="true"  descripcion="Identificador único de la rama"/>
+      <campo nombre="branchTitle" tipo="string"  requerido="true"  descripcion="Título visible de la rama"/>
+      <campo nombre="thumbnail"   tipo="string"  requerido="false" descripcion="URL o ruta de miniatura de portada"/>
+      <campo nombre="subbranches" tipo="array"   requerido="true"  descripcion="Sub-ramas recursivas (N niveles de profundidad)"/>
+      <campo nombre="leaves"      tipo="array"   requerido="true"  descripcion="Hojas/enlaces directos del nodo"/>
+    </esquema-rama>
+
+    <esquema-nodo nombre="Node (recursivo)">
+      <descripcion>
+        Modelo unificado aplicado a ramas y sub-ramas en todos los niveles.
+        Permite profundidad N-aria ilimitada: cualquier nodo puede contener
+        tanto subbranches[] como leaves[].
+      </descripcion>
+      <campo nombre="subbranchId"    tipo="string"  requerido="true"  descripcion="ID único del nodo"/>
+      <campo nombre="subbranchTitle" tipo="string"  requerido="true"  descripcion="Título del nodo"/>
+      <campo nombre="order"          tipo="integer" requerido="true"  descripcion="Posición ordinal (1-based) para secuenciación"/>
+      <campo nombre="thumbnail"      tipo="string"  requerido="false" descripcion="Miniatura opcional del nodo"/>
+      <campo nombre="subbranches"    tipo="Node[]"  requerido="true"  descripcion="Hijos recursivos del mismo tipo"/>
+      <campo nombre="leaves"         tipo="Leaf[]"  requerido="true"  descripcion="Hojas/enlaces destino del nodo"/>
+    </esquema-nodo>
+
+    <esquema-hoja nombre="Leaf">
+      <campo nombre="leafId"          tipo="string"  requerido="true"  descripcion="ID único de la hoja"/>
+      <campo nombre="platformIdRef"   tipo="string"  requerido="true"  descripcion="Referencia al platformId del catálogo central"/>
+      <campo nombre="targetUrl"       tipo="string"  requerido="true"  descripcion="URL destino del enlace"/>
+      <campo nombre="description"     tipo="string"  requerido="false" descripcion="Descripción opcional del enlace"/>
+      <campo nombre="customThumbnail" tipo="string"  requerido="false" descripcion="Miniatura manual (Prioridad 1)"/>
+      <campo nombre="autoThumbnailUrl" tipo="string" requerido="false" descripcion="og:image extraída automáticamente (Prioridad 2)"/>
+    </esquema-hoja>
+
+    <esquema-plataforma nombre="Platform">
+      <campo nombre="platformId" tipo="string" requerido="true" descripcion="Identificador único de la plataforma"/>
+      <campo nombre="name"       tipo="string" requerido="true" descripcion="Nombre visible de la plataforma"/>
+      <campo nombre="icon"       tipo="string" requerido="true" descripcion="Ruta al icono SVG de la plataforma"/>
+    </esquema-plataforma>
+  </arquitectura-datos>
+
+  <!-- ══════════════════════════════════════════════════════════
+       3. MÓDULOS FUNCIONALES (ENGINES)
+  ══════════════════════════════════════════════════════════════ -->
+  <modulos-funcionales>
+
+    <!-- 3.1 GitStorage -->
+    <modulo id="MOD-01" nombre="GitStorage" archivo="js/app-bundle.js#GitStorage">
+      <descripcion>
+        Capa de persistencia sin servidor. Utiliza localStorage del navegador
+        como shadow-copy de los datos editados y ofrece descarga manual de
+        JSONs actualizados para reemplazar los archivos fuente en disco.
+      </descripcion>
+      <funciones>
+        <funcion nombre="loadIndex()"      descripcion="Lee index.json desde localStorage; cae a datos embebidos si no existe copia local"/>
+        <funcion nombre="loadBranch(id)"   descripcion="Lee un JSON de rama; cae a datos iniciales embebidos si no existe copia local"/>
+        <funcion nombre="saveIndex(data)"  descripcion="Persiste el índice maestro en localStorage"/>
+        <funcion nombre="saveBranch(id,d)" descripcion="Persiste una rama individual en localStorage"/>
+        <funcion nombre="downloadJSON(fn,d)" descripcion="Genera un Blob y dispara descarga del archivo JSON al disco del usuario"/>
+      </funciones>
+      <clave-localStorage prefijo="ygg3_" descripcion="Todas las entradas usan el prefijo ygg3_ para evitar colisiones"/>
+    </modulo>
+
+    <!-- 3.2 SearchEngine -->
+    <modulo id="MOD-02" nombre="SearchEngine" archivo="js/app-bundle.js#SearchEngine">
+      <descripcion>
+        Motor de búsqueda global en tiempo real. Construye un índice plano
+        de todos los nodos y hojas del árbol, con soporte recursivo N-nivel.
+      </descripcion>
+      <funciones>
+        <funcion nombre="addBranch(b)"  descripcion="Indexa una rama y toda su jerarquía recursiva en el índice interno"/>
+        <funcion nombre="search(query)" descripcion="Filtra el índice con la cadena de búsqueda; devuelve máximo 20 resultados"/>
+      </funciones>
+      <campos-indexados>
+        <campo>branchTitle</campo>
+        <campo>subbranchTitle (recursivo)</campo>
+        <campo>leaf.description</campo>
+        <campo>leaf.targetUrl</campo>
+        <campo>pathLabel (ruta de ancestros)</campo>
+      </campos-indexados>
+    </modulo>
+
+    <!-- 3.3 DragOrderEngine -->
+    <modulo id="MOD-03" nombre="DragOrderEngine" archivo="js/app-bundle.js#DragOrderEngine">
+      <descripcion>
+        Motor de reordenamiento dinámico por arrastre (HTML5 Drag &amp; Drop API
+        nativa). Reescribe automáticamente la propiedad order (1-based) en el
+        JSON correspondiente tras cada soltar.
+      </descripcion>
+      <funciones>
+        <funcion nombre="init(container, selector, onReorder)" descripcion="Activa drag &amp; drop en los hijos directos del contenedor con el selector dado"/>
+        <funcion nombre="applyOrder(arr, idKey, newOrder)"     descripcion="Recalcula y asigna order (1-based) según el nuevo array de IDs ordenados"/>
+      </funciones>
+      <niveles-drag>
+        <nivel descripcion="Ramas principales (depth=0)" selector=".node-card[data-type='branch']"/>
+        <nivel descripcion="Sub-ramas del nivel activo" selector=".node-card[data-type='sub']"/>
+      </niveles-drag>
+    </modulo>
+
+    <!-- 3.4 CanvasEngine -->
+    <modulo id="MOD-04" nombre="CanvasEngine" archivo="js/app-bundle.js#CanvasEngine">
+      <descripcion>
+        Motor de renderizado del árbol completo sobre Canvas HTML5.
+        Nodos HTML superpuestos sobre el canvas para máxima flexibilidad.
+        Soporta pan (arrastre del lienzo) y zoom (rueda del ratón) con
+        transformación global aplicada tanto al canvas como a la capa HTML
+        superpuesta mediante _syncHtml().
+      </descripcion>
+      <funciones>
+        <funcion nombre="init(canvasEl, nodesLayerEl)" descripcion="Inicializa el canvas, capa de nodos y eventos de pan/zoom"/>
+        <funcion nombre="setData(orgName, branches)"   descripcion="Carga la estructura de datos y dispara el renderizado completo"/>
+        <funcion nombre="setShowSequence(bool)"        descripcion="Activa/desactiva la guía vectorial de secuencia entre sub-ramas"/>
+        <funcion nombre="resetView()"                  descripcion="Restaura la posición y escala del lienzo al estado inicial"/>
+        <funcion nombre="render()"                     descripcion="Re-dibuja el canvas completo (nodos + conectores bézier + guía de secuencia)"/>
+      </funciones>
+      <estilos-conector>
+        <conector tipo="raiz-rama"      color="rgba(220,38,38,0.55)"  grosor="1.5px" estilo="curva-bezier"/>
+        <conector tipo="rama-subrama"   color="rgba(245,158,11,0.55)" grosor="1.5px" estilo="curva-bezier"/>
+        <conector tipo="subrama-hoja"   color="rgba(148,163,184,0.4)" grosor="1.0px" estilo="curva-bezier"/>
+        <conector tipo="guia-secuencia" color="rgba(245,158,11,0.7)"  grosor="1.0px" estilo="linea-discontinua-4-6"/>
+      </estilos-conector>
+    </modulo>
+
+    <!-- 3.5 TreeRenderer (Drill-Down) -->
+    <modulo id="MOD-05" nombre="TreeRenderer" archivo="js/app-bundle.js#TreeRenderer">
+      <descripcion>
+        Renderizador de la Vista Cuadrícula con patrón de navegación Drill-Down.
+        En cada nivel solo muestra los hijos directos del nodo activo y las hojas
+        de ese nivel. Soporta profundidad recursiva N-aria ilimitada.
+      </descripcion>
+      <funciones>
+        <funcion nombre="init(containerEl, onDataChange)" descripcion="Asocia el contenedor DOM y el callback de persistencia"/>
+        <funcion nombre="renderLevel(indexData, branchesMap, catalog, navStack, animDir)"
+                 descripcion="Renderiza el nivel activo según el estado de la pila de navegación con la animación indicada"/>
+      </funciones>
+      <comportamiento-drill-down>
+        <regla>Clic en la zona de tarjeta (fuera de botones) → navEnter() si el nodo tiene hijos</regla>
+        <regla>Clic en botón de acción → modal o acción destructiva (no navega)</regla>
+        <regla>Botón "Atrás" → navTo(navStack.length - 2)</regla>
+        <regla>Clic en breadcrumb → navTo(idx) con animación de retroceso</regla>
+      </comportamiento-drill-down>
+      <orden-render>
+        <bloque orden="1" descripcion="Hojas/Plataformas del nivel activo + botón Agregar plataforma aquí"/>
+        <bloque orden="2" descripcion="Grid de sub-ramas + CTA de nueva sub-rama"/>
+      </orden-render>
+    </modulo>
+
+    <!-- 3.6 UIController -->
+    <modulo id="MOD-06" nombre="UIController" archivo="js/app-bundle.js#UIController">
+      <descripcion>
+        Controlador de modales de edición, catálogo de plataformas e
+        importación/exportación de JSON. No requiere autenticación.
+        Integra un sistema de notificaciones toast inline.
+      </descripcion>
+      <modales>
+        <modal id="MODAL-01" nombre="Editar Nodo"          funcion="openEditNodeModal(nodeId, branchId, isBranch)"/>
+        <modal id="MODAL-02" nombre="Nueva Rama Principal"  funcion="openAddBranchModal()"/>
+        <modal id="MODAL-03" nombre="Nueva Sub-rama"        funcion="openAddSubModal(parentId, branchId, isBranch)"/>
+        <modal id="MODAL-04" nombre="Agregar Enlace (Hoja)" funcion="openAddLeafModal(parentId, branchId)"/>
+        <modal id="MODAL-05" nombre="Editar Enlace (Hoja)"  funcion="openEditLeafModal(branchId, subbranchId, leafId)"/>
+        <modal id="MODAL-06" nombre="Confirmar Eliminación" funcion="openDeleteModal(title, onConfirm)"/>
+        <modal id="MODAL-07" nombre="Catálogo de Plataformas" funcion="openCatalogModal()"/>
+        <modal id="MODAL-08" nombre="Importar Rama JSON"    funcion="openImportModal()"/>
+      </modales>
+      <auditoria>
+        <campo nombre="lastModified"      tipo="ISO-8601"  descripcion="Timestamp automático de cada modificación"/>
+        <campo nombre="modifiedBy"        tipo="string"    descripcion="Nombre libre del autor; valor por defecto: Anónimo"/>
+        <campo nombre="changeDescription" tipo="string"    descripcion="Descripción generada automáticamente de la operación"/>
+      </auditoria>
+    </modulo>
+
+  </modulos-funcionales>
+
+  <!-- ══════════════════════════════════════════════════════════
+       4. FUNCIONALIDADES CORE
+  ══════════════════════════════════════════════════════════════ -->
+  <funcionalidades-core>
+
+    <!-- F-01 -->
+    <funcionalidad id="F-01" nombre="Estructura Recursiva N-aria" prioridad="alta" estado="implementado">
+      <descripcion>
+        El modelo de datos permite profundidad ilimitada. Cada nodo (Branch o
+        Subbranch) puede contener tanto subbranches[] como leaves[] de forma
+        independiente y sin límite de anidamiento.
+      </descripcion>
+      <esquema-tipo>
+        <![CDATA[
+        interface Node {
+          id: string;
+          title: string;
+          order: number;
+          thumbnail?: string;
+          subbranches: Node[];   // Recursivo N-nivel
+          leaves: Leaf[];
+        }
+        ]]>
+      </esquema-tipo>
+      <restricciones>
+        <restriccion>El ID de cada nodo debe ser único dentro de toda la jerarquía</restriccion>
+        <restriccion>La propiedad order debe ser un entero positivo (1-based)</restriccion>
+      </restricciones>
+    </funcionalidad>
+
+    <!-- F-02 -->
+    <funcionalidad id="F-02" nombre="Navegación Drill-Down (Focalización de Nivel)" prioridad="alta" estado="implementado">
+      <descripcion>
+        Sustituye la vista plana por un patrón de navegación por inmersión
+        jerárquica. Al hacer clic en un nodo padre, el estado global
+        activeNodeId se actualiza para renderizar únicamente ese nodo y sus
+        hijos directos, eliminando el clutter visual.
+      </descripcion>
+      <estado-navegacion>
+        <campo nombre="_navStack" tipo="Array" descripcion="Pila de historial: [{id, title, nodeRef, branchId}, ...]"/>
+        <campo nombre="_animDir"  tipo="string" valores="forward|back" descripcion="Dirección para la animación de transición"/>
+      </estado-navegacion>
+      <operaciones>
+        <operacion nombre="navEnter(nodeRef, branchId)" descripcion="push al stack → re-renderiza con animación forward"/>
+        <operacion nombre="navTo(idx)"                  descripcion="splice del stack al índice → re-renderiza con animación back"/>
+        <operacion nombre="navRoot()"                   descripcion="Resetea el stack a la raíz con animación back"/>
+      </operaciones>
+    </funcionalidad>
+
+    <!-- F-03 -->
+    <funcionalidad id="F-03" nombre="Breadcrumb de Ruta" prioridad="alta" estado="implementado">
+      <descripcion>
+        Barra de navegación fija bajo el header que muestra la ruta completa
+        desde la raíz hasta el nivel activo. Cada ancestro es clicable y
+        muta el estado global de la vista al hacer clic.
+      </descripcion>
+      <comportamiento>
+        <regla>Se oculta automáticamente cuando la pila tiene solo la raíz (depth=0)</regla>
+        <regla>El último elemento de la ruta se muestra sin cursor pointer (no-clicable)</regla>
+        <regla>Scroll horizontal habilitado cuando la ruta supera el ancho disponible</regla>
+        <regla>#app-main recibe clase .has-breadcrumb para ajustar margin-top</regla>
+      </comportamiento>
+      <elemento-dom id="breadcrumb-bar" clase="nav" rol="navigation"/>
+    </funcionalidad>
+
+    <!-- F-04 -->
+    <funcionalidad id="F-04" nombre="Motor de Animación de Transición" prioridad="media" estado="implementado">
+      <descripcion>
+        Transiciones CSS declarativas entre niveles durante el Drill-Down y
+        el retroceso (Roll-Up).
+      </descripcion>
+      <animaciones>
+        <animacion nombre="drillIn" clase="drill-enter" duracion="280ms"
+                   funcion-tiempo="cubic-bezier(0.4, 0.0, 0.2, 1)"
+                   efecto="scale(0.96→1) + opacity(0→1) + translateX(12px→0)"
+                   uso="Avance hacia nivel hijo"/>
+        <animacion nombre="drillOut" clase="drill-back" duracion="260ms"
+                   funcion-tiempo="cubic-bezier(0.4, 0.0, 0.2, 1)"
+                   efecto="scale(1.02→1) + opacity(0→1) + translateX(-12px→0)"
+                   uso="Retroceso a nivel padre o ancestro"/>
+      </animaciones>
+    </funcionalidad>
+
+    <!-- F-05 -->
+    <funcionalidad id="F-05" nombre="Catálogo Central de Plataformas" prioridad="alta" estado="implementado">
+      <descripcion>
+        Librería global reutilizable de plataformas (ej. YouTube, Spotify,
+        GitHub) con sus iconos vectoriales SVG. Gestionable en tiempo real
+        desde el modal de catálogo sin recargar la página.
+      </descripcion>
+      <plataformas-iniciales>
+        <plataforma id="plat_youtube" nombre="YouTube"   icono="assets/icons/youtube.svg"/>
+        <plataforma id="plat_web"     nombre="Sitio Web" icono="assets/icons/web.svg"/>
+        <plataforma id="plat_spotify" nombre="Spotify"   icono="assets/icons/spotify.svg"/>
+        <plataforma id="plat_github"  nombre="GitHub"    icono="assets/icons/github.svg"/>
+      </plataformas-iniciales>
+      <operaciones-crud>
+        <operacion tipo="crear"   descripcion="Agregar nueva plataforma con ID único, nombre e icono"/>
+        <operacion tipo="leer"    descripcion="Listar plataformas en el modal de catálogo"/>
+        <operacion tipo="eliminar" descripcion="Eliminar plataforma con confirmación; no afecta hojas ya creadas"/>
+      </operaciones-crud>
+    </funcionalidad>
+
+    <!-- F-06 -->
+    <funcionalidad id="F-06" nombre="Resolución de Miniaturas en 3 Capas" prioridad="media" estado="implementado">
+      <descripcion>
+        Sistema de resolución de imagen para hojas (Leaf) con 3 niveles
+        de prioridad en cascada.
+      </descripcion>
+      <capas>
+        <capa prioridad="1" nombre="Miniatura Manual"
+              fuente="leaf.customThumbnail"
+              descripcion="URL o dataURL aportada directamente por el usuario; muestra &lt;img&gt; con onerror de degradación"/>
+        <capa prioridad="2" nombre="Icono de Plataforma"
+              fuente="_platIconFallback(plat)"
+              descripcion="Icono SVG de la plataforma asociada centrado sobre el fondo de respaldo (22×22px, opacity 0.65)"/>
+        <capa prioridad="3" nombre="Fondo de Respaldo"
+              fuente="var(--thumbnail-fallback)"
+              descripcion="Color sólido (azul rey #1E3A8A en paleta institucional) si no hay imagen ni icono"/>
+      </capas>
+    </funcionalidad>
+
+    <!-- F-07 -->
+    <funcionalidad id="F-07" nombre="Reordenamiento por Arrastre (Drag &amp; Drop)" prioridad="alta" estado="implementado">
+      <descripcion>
+        Motor de reordenamiento visual en la Vista Cuadrícula usando la API
+        nativa de HTML5 Drag &amp; Drop. Al soltar un nodo en nueva posición,
+        el sistema reescribe automáticamente la propiedad order en el JSON
+        correspondiente y persiste en localStorage.
+      </descripcion>
+      <alcance>
+        <nivel descripcion="Ramas principales (nivel raíz)"/>
+        <nivel descripcion="Sub-ramas del nivel activo en Drill-Down"/>
+      </alcance>
+    </funcionalidad>
+
+    <!-- F-08 -->
+    <funcionalidad id="F-08" nombre="Importación y Exportación de JSON" prioridad="media" estado="implementado">
+      <descripcion>
+        Cada rama principal puede exportarse como archivo .json independiente.
+        El sistema acepta la importación de archivos .json de rama previa
+        mediante drag &amp; drop o selección de archivo, validando la estructura
+        antes de insertarla.
+      </descripcion>
+      <exportacion>
+        <trigger>Botón ⬇ en cada tarjeta de nodo de primer nivel</trigger>
+        <formato>JSON con indentación de 2 espacios</formato>
+        <nombre-archivo>{branchId}.json</nombre-archivo>
+      </exportacion>
+      <importacion>
+        <metodo-1>Drag &amp; Drop de archivo .json sobre la zona de importación</metodo-1>
+        <metodo-2>Selector de archivo nativo del navegador</metodo-2>
+        <validacion>Requiere presencia de campos branchId y branchTitle</validacion>
+        <conflicto>Si el branchId ya existe, se sobreescribe la rama existente</conflicto>
+      </importacion>
+    </funcionalidad>
+
+    <!-- F-09 -->
+    <funcionalidad id="F-09" nombre="Buscador Global en Tiempo Real" prioridad="media" estado="implementado">
+      <descripcion>
+        Campo de búsqueda en el header que evalúa coincidencias en todo el
+        árbol (ramas, sub-ramas y hojas) sin recargar la página. Muestra un
+        overlay flotante con hasta 20 resultados.
+      </descripcion>
+      <comportamiento>
+        <regla>La búsqueda se activa con mínimo 2 caracteres</regla>
+        <regla>El overlay se cierra al hacer clic fuera o al perder el foco (200ms delay)</regla>
+        <regla>Clic en resultado navega al nodo correspondiente mediante drill-down desde la raíz</regla>
+        <regla>Al hacer clic en un resultado se cambia automáticamente a Vista Grid si el canvas estaba activo</regla>
+      </comportamiento>
+    </funcionalidad>
+
+    <!-- F-10 -->
+    <funcionalidad id="F-10" nombre="Auditoría sin Login" prioridad="alta" estado="implementado">
+      <descripcion>
+        Sistema de registro de cambios completamente libre, sin autenticación.
+        El campo de autoría es opcional; si se deja en blanco el sistema
+        registra el cambio como Anónimo.
+      </descripcion>
+      <comportamiento>
+        <regla>Cada operación de escritura actualiza audit.lastModified, audit.modifiedBy y audit.changeDescription</regla>
+        <regla>El badge del header se actualiza en tiempo real tras cada guardado</regla>
+        <regla>Los datos de auditoría se persisten dentro de index.json en localStorage</regla>
+        <regla>Cada guardado exitoso dispara una notificación toast tipo success</regla>
+      </comportamiento>
+    </funcionalidad>
+
+    <!-- F-11 -->
+    <funcionalidad id="F-11" nombre="Vista Canvas" prioridad="media" estado="implementado">
+      <descripcion>
+        Visualización alternativa del árbol completo sobre un lienzo Canvas
+        HTML5. Renderiza nodos como elementos HTML superpuestos con conectores
+        de curva bézier. Soporta pan y zoom mediante ratón con transformación
+        global unificada (ctx.translate + ctx.scale + _syncHtml).
+      </descripcion>
+      <controles>
+        <control nombre="Pan"  interaccion="Arrastre del ratón sobre el canvas"/>
+        <control nombre="Zoom" interaccion="Rueda del ratón (factor 0.9/1.1 por tick, rango 0.2x–4.0x); centrado en la posición del cursor"/>
+        <control nombre="Reset" interaccion="Botón ⌖ en los controles del canvas"/>
+        <control nombre="Zoom In" interaccion="Botón + en controles del canvas (dispara WheelEvent con deltaY: -100)"/>
+        <control nombre="Zoom Out" interaccion="Botón − en controles del canvas (dispara WheelEvent con deltaY: 100)"/>
+        <control nombre="Guía de secuencia" interaccion="Checkbox; línea punteada entre sub-ramas ordenadas"/>
+      </controles>
+    </funcionalidad>
+
+    <!-- F-12 -->
+    <funcionalidad id="F-12" nombre="Sistema de Notificaciones Toast" prioridad="media" estado="implementado">
+      <descripcion>
+        Notificaciones flotantes no bloqueantes que confirman al usuario el
+        resultado de cada operación de escritura, error o acción del sistema.
+        Se muestran en la esquina inferior derecha y desaparecen automáticamente.
+      </descripcion>
+      <tipos>
+        <tipo clase="toast-success" uso="Confirmación de guardado, importación, restauración de datos"/>
+        <tipo clase="toast-error"   uso="Errores de inicialización u operaciones fallidas"/>
+        <tipo clase="toast-info"    uso="Mensajes informativos del sistema"/>
+      </tipos>
+      <comportamiento>
+        <regla>La notificación aparece en la esquina inferior derecha (#toast-container, posición fixed)</regla>
+        <regla>Duración visible: 3200ms; desaparece con fade-out y se elimina del DOM en transitionend</regla>
+        <regla>Múltiples toasts se apilan verticalmente con gap 8px</regla>
+      </comportamiento>
+    </funcionalidad>
+
+    <!-- F-13 -->
+    <funcionalidad id="F-13" nombre="Reseteo de Datos" prioridad="baja" estado="implementado">
+      <descripcion>
+        Botón en el header que borra todas las entradas de localStorage con
+        prefijo ygg3_ y recarga la página para restaurar los datos iniciales
+        embebidos en el bundle.
+      </descripcion>
+      <comportamiento>
+        <regla>Requiere confirmación explícita mediante el modal openDeleteModal antes de ejecutar</regla>
+        <regla>Tras limpiar el localStorage muestra toast success y recarga la página con 900ms de delay</regla>
+        <regla>El botón se identifica con #btn-reset-data y usa color var(--accent-danger) para señalizar peligro</regla>
+      </comportamiento>
+    </funcionalidad>
+
+  </funcionalidades-core>
+
+  <!-- ══════════════════════════════════════════════════════════
+       5. INTERFAZ DE USUARIO — COMPONENTES
+  ══════════════════════════════════════════════════════════════ -->
+  <interfaz-usuario>
+
+    <header id="app-header">
+      <descripcion>Header fijo con efecto Glassmorphism (backdrop-filter: blur(18px)) sobre paleta azul marino institucional</descripcion>
+      <elementos>
+        <elemento id="org-logo"             tipo="img"    descripcion="Logotipo institucional SVG"/>
+        <elemento id="org-name"             tipo="span"   descripcion="Nombre de la organización (tipografía Space Grotesk)"/>
+        <elemento id="search-input"         tipo="input"  descripcion="Buscador global en tiempo real"/>
+        <elemento id="btn-view-grid"        tipo="button" descripcion="Toggle Vista Cuadrícula (activo por defecto)"/>
+        <elemento id="btn-view-canvas"      tipo="button" descripcion="Toggle Vista Canvas"/>
+        <elemento id="audit-badge"          tipo="div"    descripcion="Badge de auditoría: autor + fecha de última modificación"/>
+        <elemento id="btn-add-branch-header" tipo="button" descripcion="Abre modal Nueva Rama Principal"/>
+        <elemento id="btn-open-catalog"     tipo="button" descripcion="Abre modal Catálogo de Plataformas"/>
+        <elemento id="btn-import-branch"    tipo="button" descripcion="Abre modal Importar Rama JSON"/>
+        <elemento id="btn-reset-data"       tipo="button" descripcion="Borra todos los datos guardados y restaura datos de ejemplo (requiere confirmación)"/>
+      </elementos>
+    </header>
+
+    <breadcrumb-bar id="breadcrumb-bar">
+      <descripcion>
+        Barra de navegación fija bajo el header. Oculta en nivel raíz (depth=0).
+        Cada ancestro es un botón clicable. El nivel activo no es clicable.
+      </descripcion>
+    </breadcrumb-bar>
+
+    <vista-cuadricula id="grid-view">
+      <descripcion>Vista por defecto. Renderiza el nivel activo de la pila de navegación.</descripcion>
+      <componentes>
+        <componente nombre="level-header" descripcion="Título del nivel activo + botón Atrás (depth &gt; 0)"/>
+        <componente nombre="leaves-section" descripcion="Sección de hojas del nivel activo con grid de leaf-items (renderizada ANTES del grid de sub-ramas)"/>
+        <componente nombre="btn-add-leaf-here" descripcion="Botón para añadir enlace al nivel activo (visible en depth &gt; 0)"/>
+        <componente nombre="nodes-grid"   descripcion="CSS Grid auto-fill de tarjetas de nodo (minmax 240px)"/>
+        <componente nombre="node-card"    descripcion="Tarjeta de rama o sub-rama con thumbnail, header, contador de hijos y footer de acciones"/>
+        <componente nombre="add-node-card" descripcion="CTA para crear nuevo nodo en el nivel activo"/>
+        <componente nombre="leaf-item"    descripcion="Enlace individual con thumbnail (o icono de plataforma), icono de plataforma badge, descripción, URL y acciones"/>
+      </componentes>
+    </vista-cuadricula>
+
+    <vista-canvas id="canvas-view">
+      <descripcion>Vista alternativa de árbol completo sobre HTML5 Canvas con pan y zoom.</descripcion>
+      <componentes>
+        <componente nombre="tree-canvas"        descripcion="Elemento canvas para conectores bézier y guía de secuencia"/>
+        <componente nombre="canvas-nodes-layer" descripcion="Capa HTML superpuesta con nodos .cnode; sincronizada con pan/zoom mediante _syncHtml()"/>
+        <componente nombre="canvas-controls"    descripcion="Botones de reset (⌖), zoom-in (+) y zoom-out (−) posicionados en la vista Canvas"/>
+        <componente nombre="sequence-toggle"    descripcion="Checkbox para mostrar/ocultar la guía de secuencia"/>
+      </componentes>
+    </vista-canvas>
+
+    <toast-container id="toast-container">
+      <descripcion>
+        Contenedor de notificaciones tipo toast. Posición fixed en esquina
+        inferior derecha. Los toasts se apilan con gap 8px y se auto-eliminan.
+      </descripcion>
+    </toast-container>
+
+  </interfaz-usuario>
+
+  <!-- ══════════════════════════════════════════════════════════
+       6. SISTEMA DE DISEÑO — PALETA Y TIPOGRAFÍA
+  ══════════════════════════════════════════════════════════════ -->
+  <sistema-disenio>
+
+    <descripcion>
+      Paleta institucional Cofradia de tres colores: Azul Marino (dominante),
+      Rojo (acción primaria) y Amarillo (acento/destaque). 90% de la composición
+      en azul marino profundo para cohesión visual institucional. 10% en rojos y
+      amarillos de uso funcional y semántico estricto.
+    </descripcion>
+
+    <tipografia>
+      <fuente rol="titulares-header" familia="Space Grotesk" pesos="600,700" fuente="Google Fonts CDN"
+              descripcion="Trazos geométricos modernos para encabezados y branding"/>
+      <fuente rol="cuerpo-tarjetas"  familia="Inter"         pesos="400,500,600" fuente="Google Fonts CDN"
+              descripcion="Alta legibilidad en pantallas oscuras para texto de cuerpo"/>
+    </tipografia>
+
+    <paleta>
+      <categoria nombre="Fondos — Azul marino dominante">
+        <color variable="--bg-primary"   hex="#0A192F" descripcion="Azul marino profundo — body y canvas"/>
+        <color variable="--bg-card"      hex="#112240" descripcion="Azul medio — tarjetas y paneles"/>
+        <color variable="--bg-surface"   hex="#1E3A8A" descripcion="Azul rey — contenedores y modales"/>
+        <color variable="--bg-input"     hex="#172A45" descripcion="Azul oscuro — inputs y controles"/>
+        <color variable="--bg-glass"     hex="rgba(10,25,47,0.92)" descripcion="Header glassmorphism con backdrop-filter sobre base azul"/>
+      </categoria>
+      <categoria nombre="Texto">
+        <color variable="--text-main"    hex="#FFFFFF" descripcion="Blanco brillante — alto contraste"/>
+        <color variable="--text-muted"   hex="#FBBF24" descripcion="Amarillo cálido — labels y subtítulos"/>
+        <color variable="--text-faint"   hex="#94A3B8" descripcion="Gris azulado — metadatos e IDs"/>
+      </categoria>
+      <categoria nombre="Bordes y Separadores">
+        <color variable="--border-color" hex="rgba(251,191,36,0.25)" descripcion="Borde sutil amarillo"/>
+        <color variable="--border-hover" hex="#F59E0B"               descripcion="Amarillo brillante en hover"/>
+      </categoria>
+      <categoria nombre="Acentos — 10% uso funcional">
+        <color variable="--accent-primary"     hex="#DC2626" descripcion="ROJO — botones primarios y CTAs"/>
+        <color variable="--accent-primary-h"   hex="#EF4444" descripcion="Rojo hover"/>
+        <color variable="--accent-secondary"   hex="#F59E0B" descripcion="AMARILLO — badges, iconos y destaques"/>
+        <color variable="--accent-secondary-h" hex="#FBBF24" descripcion="Amarillo hover"/>
+        <color variable="--accent-danger"      hex="#991B1B" descripcion="Rojo oscuro — acciones destructivas"/>
+        <color variable="--accent-danger-h"    hex="#B91C1C" descripcion="Rojo destructivo hover"/>
+        <color variable="--accent-success"     hex="#16A34A" descripcion="Verde operativo — confirmaciones"/>
+      </categoria>
+      <categoria nombre="Fallback">
+        <color variable="--thumbnail-fallback" hex="#1E3A8A" descripcion="Azul rey como fondo de respaldo para hojas sin miniatura"/>
+      </categoria>
+    </paleta>
+
+    <geometria>
+      <variable nombre="--radius"    valor="8px"  descripcion="Radio estándar de bordes"/>
+      <variable nombre="--radius-lg" valor="12px" descripcion="Radio grande: tarjetas y modales"/>
+      <variable nombre="--radius-xl" valor="16px" descripcion="Radio extra grande: contenedores principales"/>
+      <variable nombre="--transition" valor="0.2s ease-in-out" descripcion="Velocidad de transición estándar"/>
+      <variable nombre="--ease-drill" valor="cubic-bezier(0.4, 0.0, 0.2, 1)" descripcion="Función de timing para animaciones Drill-Down"/>
+      <variable nombre="--header-height"      valor="62px" descripcion="Altura del header fijo"/>
+      <variable nombre="--breadcrumb-height"  valor="44px" descripcion="Altura de la barra de breadcrumb"/>
+    </geometria>
+
+    <codificacion-profundidad>
+      <descripcion>El borde izquierdo de las tarjetas cambia de color según la profundidad del nodo (data-depth en node-card)</descripcion>
+      <nivel profundidad="0" descripcion="Ramas principales — color primario institucional"/>
+      <nivel profundidad="1" descripcion="Nivel 1 — color secundario institucional"/>
+      <nivel profundidad="2" descripcion="Nivel 2 — variante de color"/>
+      <nivel profundidad="3" descripcion="Nivel 3+ — variante de color (truncado en CSS al valor 3)"/>
+    </codificacion-profundidad>
+
+  </sistema-disenio>
+
+  <!-- ══════════════════════════════════════════════════════════
+       7. ARQUITECTURA DE ARCHIVOS
+  ══════════════════════════════════════════════════════════════ -->
+  <arquitectura-archivos>
+    <archivo ruta="index.html"                  rol="Entrada principal — HTML5 semántico, header y estructura de vistas"/>
+    <archivo ruta="js/app-bundle.js"            rol="Bundle JS único — todos los módulos en IIFE sin dependencias externas (~1120 líneas)"/>
+    <archivo ruta="js/app.js"                   rol="Versión modular (ES Modules) — referencia de desarrollo"/>
+    <archivo ruta="js/modules/dataLoader.js"    rol="Carga de index.json y lazy loading de ramas (versión ES Module)"/>
+    <archivo ruta="js/modules/gitStorage.js"    rol="Persistencia localStorage (versión ES Module)"/>
+    <archivo ruta="js/modules/canvasEngine.js"  rol="Motor Canvas (versión ES Module)"/>
+    <archivo ruta="js/modules/dragOrderEngine.js" rol="Drag &amp; Drop (versión ES Module)"/>
+    <archivo ruta="js/modules/searchEngine.js"  rol="Buscador global (versión ES Module)"/>
+    <archivo ruta="js/modules/treeRenderer.js"  rol="Renderizador de tarjetas (versión ES Module)"/>
+    <archivo ruta="js/modules/uiController.js"  rol="Controlador de modales (versión ES Module)"/>
+    <archivo ruta="css/base.css"                rol="Reset, tipografías, paleta institucional (azul/rojo/amarillo), animaciones Drill-Down y Toast"/>
+    <archivo ruta="css/layout.css"              rol="Header glassmorphism, breadcrumb, área de contenido y resultados de búsqueda"/>
+    <archivo ruta="css/tree-node.css"           rol="Tarjetas node-card, drill-level y hojas leaf-item"/>
+    <archivo ruta="css/canvas.css"              rol="Lienzo Canvas, nodos superpuestos y controles"/>
+    <archivo ruta="css/modal.css"               rol="Modales de edición, catálogo e importación"/>
+    <archivo ruta="data/index.json"             rol="Archivo maestro: catálogo, auditoría e índice de ramas (schema version 3.0)"/>
+    <archivo ruta="data/branches/rama_01.json"  rol="Datos de la rama Recursos y Publicaciones"/>
+    <archivo ruta="data/branches/rama_02.json"  rol="Datos de la rama Entretenimiento y Medios"/>
+    <archivo ruta="assets/icons/youtube.svg"    rol="Icono plataforma YouTube"/>
+    <archivo ruta="assets/icons/web.svg"        rol="Icono plataforma Sitio Web"/>
+    <archivo ruta="assets/icons/spotify.svg"    rol="Icono plataforma Spotify"/>
+    <archivo ruta="assets/icons/github.svg"     rol="Icono plataforma GitHub"/>
+    <archivo ruta="assets/images/logo.svg"      rol="Logotipo institucional Cofradia"/>
+    <archivo ruta="docs/especificaciones-funcionales.xml" rol="Este documento"/>
+    <archivo ruta="docs/especificaciones-tecnicas.xml"    rol="Especificaciones técnicas complementarias"/>
+  </arquitectura-archivos>
+
+  <!-- ══════════════════════════════════════════════════════════
+       8. REGLAS DE NEGOCIO
+  ══════════════════════════════════════════════════════════════ -->
+  <reglas-negocio>
+    <regla id="RN-01" categoria="datos">
+      Los IDs de nodos (branchId, subbranchId, leafId) deben ser únicos dentro
+      de toda la jerarquía. Los IDs de plataforma deben ser únicos en el catálogo.
+    </regla>
+    <regla id="RN-02" categoria="datos">
+      La propiedad order es siempre 1-based y debe ser recalculada de forma
+      contigua (1, 2, 3... N) cada vez que se reordene o elimine un nodo.
+    </regla>
+    <regla id="RN-03" categoria="persistencia">
+      Todos los cambios se persisten inmediatamente en localStorage sin confirmación
+      adicional del usuario, salvo las operaciones de eliminación que requieren
+      confirmación explícita en modal.
+    </regla>
+    <regla id="RN-04" categoria="persistencia">
+      El localStorage utiliza el prefijo ygg3_ para aislar los datos del proyecto
+      de otras aplicaciones en el mismo origen.
+    </regla>
+    <regla id="RN-05" categoria="navegacion">
+      El botón "Atrás" y los links del breadcrumb nunca eliminan datos; solo
+      modifican el estado visual _navStack.
+    </regla>
+    <regla id="RN-06" categoria="navegacion">
+      Solo los nodos que tienen al menos un hijo (subbranch o leaf) son
+      clicables para el drill-down. Los nodos vacíos muestran las acciones
+      de creación de hijos pero no navegan.
+    </regla>
+    <regla id="RN-07" categoria="auditoria">
+      Si el campo de autor se deja vacío en cualquier formulario de edición,
+      el sistema registra automáticamente el valor Anónimo en audit.modifiedBy.
+    </regla>
+    <regla id="RN-08" categoria="importacion">
+      Un archivo JSON importado debe contener al menos los campos branchId y
+      branchTitle para superar la validación. Cualquier otra estructura
+      adicional se preserva sin modificación.
+    </regla>
+    <regla id="RN-09" categoria="ui">
+      Los eventos de click en los botones de acción dentro de una tarjeta
+      (✎ editar, ✕ eliminar, ⬇ exportar) no propagan la acción de drill-down
+      aunque el nodo sea clicable (e.target.closest('button') guard en el handler).
+    </regla>
+    <regla id="RN-10" categoria="datos">
+      Al eliminar una rama principal, si la pila de navegación _navStack
+      contiene ese nodo, el sistema navega automáticamente a la raíz para
+      evitar un estado de vista huérfano.
+    </regla>
+    <regla id="RN-11" categoria="datos">
+      Al eliminar una sub-rama, si la pila de navegación _navStack contiene
+      ese nodo, el sistema navega al nivel padre (navTo(navStack.length - 2))
+      para evitar un estado de vista huérfano.
+    </regla>
+    <regla id="RN-12" categoria="ui">
+      El reseteo de datos (F-13) requiere confirmación en modal y muestra un
+      toast de éxito antes de recargar la página con un retraso de 900ms.
+    </regla>
+  </reglas-negocio>
+
+  <!-- ══════════════════════════════════════════════════════════
+       9. REGISTRO DE VERSIONES
+  ══════════════════════════════════════════════════════════════ -->
+  <historial-versiones>
+    <version numero="1.0" fecha="2026-08-04">
+      <cambio>Estructura base del proyecto: index.html, CSS modular, módulos ES</cambio>
+      <cambio>Datos iniciales: 2 ramas, catálogo de 4 plataformas</cambio>
+      <cambio>Vista Cuadrícula con accordions de sub-ramas</cambio>
+      <cambio>Vista Canvas con pan/zoom y guía de secuencia</cambio>
+    </version>
+    <version numero="2.0" fecha="2026-08-04">
+      <cambio>Consolidación en bundle único app-bundle.js (compatibilidad file://)</cambio>
+      <cambio>Corrección de spinner infinito y listeners duplicados</cambio>
+      <cambio>Botón Nueva Rama en header</cambio>
+      <cambio>Edición completa de hojas (openEditLeafModal)</cambio>
+    </version>
+    <version numero="3.0" fecha="2026-08-04">
+      <cambio>Recursividad N-aria completa: modelo unificado Node genérico</cambio>
+      <cambio>Patrón de navegación Drill-Down con pila _navStack</cambio>
+      <cambio>Barra de Breadcrumb interactiva con historial de ruta</cambio>
+      <cambio>Motor de animación CSS drillIn/drillOut (280ms/260ms cubic-bezier)</cambio>
+      <cambio>Prefijo localStorage actualizado a ygg3_ para evitar colisión con versiones anteriores</cambio>
+    </version>
+    <version numero="3.1" fecha="2026-08-04">
+      <cambio>Paleta institucional Cofradia: Azul Marino (#0A192F) + Rojo (#DC2626) + Amarillo (#F59E0B)</cambio>
+      <cambio>Sistema de notificaciones Toast (F-12) con tipos success/error/info</cambio>
+      <cambio>Botón de Reseteo de datos (F-13) con confirmación modal</cambio>
+      <cambio>Zoom del canvas con centrado en posición del cursor y rango ampliado 0.2x–4.0x</cambio>
+      <cambio>Transformación unificada canvas+capa HTML mediante _syncHtml()</cambio>
+      <cambio>Render order: hojas primero (bloque 1), sub-ramas después (bloque 2)</cambio>
+      <cambio>Botones de zoom (+/−) en la Vista Canvas</cambio>
+      <cambio>Navegación desde resultados de búsqueda mediante drill-down automático</cambio>
+      <cambio>Documentación sincronizada con implementación real del bundle</cambio>
+    </version>
+  </historial-versiones>
+
+</especificaciones-funcionales>

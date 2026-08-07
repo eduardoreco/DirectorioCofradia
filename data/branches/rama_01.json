@@ -1,0 +1,42 @@
+{
+  "branchId": "rama_01",
+  "branchTitle": "Recursos y Publicaciones",
+  "thumbnail": null,
+  "subbranches": [
+    {
+      "subbranchId": "subrama_01_1",
+      "order": 1,
+      "subbranchTitle": "Documentación y Guías",
+      "thumbnail": null,
+      "subbranches": [],
+      "leaves": [
+        {
+          "leafId": "leaf_01_1_1",
+          "platformIdRef": "plat_web",
+          "targetUrl": "https://ejemplo.com/guia-inicio",
+          "description": "Guía de inicio rápido",
+          "customThumbnail": null,
+          "autoThumbnailUrl": null
+        }
+      ]
+    },
+    {
+      "subbranchId": "subrama_01_2",
+      "order": 2,
+      "subbranchTitle": "Tutoriales en Video",
+      "thumbnail": null,
+      "subbranches": [],
+      "leaves": [
+        {
+          "leafId": "leaf_01_2_1",
+          "platformIdRef": "plat_youtube",
+          "targetUrl": "https://youtube.com/watch?v=ejemplo",
+          "description": "Tutorial introductorio en video",
+          "customThumbnail": null,
+          "autoThumbnailUrl": null
+        }
+      ]
+    }
+  ],
+  "leaves": []
+}

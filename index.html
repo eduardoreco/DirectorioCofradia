@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Yggdrasil — Directorio visual e interactivo de enlaces">
+  <title>Yggdrasil · Cofradia</title>
+
+  <!-- CSS Modular -->
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/tree-node.css">
+  <link rel="stylesheet" href="css/canvas.css">
+  <link rel="stylesheet" href="css/modal.css">
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════════════
+       HEADER — Glassmorphism, Branding & Controls
+  ══════════════════════════════════════════════════════ -->
+  <header id="app-header" role="banner">
+
+    <!-- Branding -->
+    <a class="header-brand" href="#" aria-label="Inicio">
+      <img src="assets/images/logo.svg" alt="Logotipo Cofradia" id="org-logo">
+      <span class="brand-name" id="org-name">Cofradia</span>
+    </a>
+
+    <!-- Buscador global -->
+    <div class="header-search" role="search">
+      <input
+        type="search"
+        id="search-input"
+        placeholder="Buscar ramas, sub-ramas o enlaces…"
+        aria-label="Búsqueda global"
+        autocomplete="off"
+      >
+      <span class="search-icon" aria-hidden="true">⌕</span>
+    </div>
+
+    <!-- Controles de vista -->
+    <div class="header-controls">
+
+      <!-- Toggle Grid / Canvas -->
+      <div class="view-toggle" role="group" aria-label="Selector de vista">
+        <button id="btn-view-grid" class="active" title="Vista Cuadrícula" aria-pressed="true">
+          ⊞ Cuadrícula
+        </button>
+        <button id="btn-view-canvas" title="Vista Canvas" aria-pressed="false">
+          ◈ Canvas
+        </button>
+      </div>
+
+      <!-- Badge de auditoría -->
+      <div class="audit-badge" id="audit-badge" title="Última modificación">
+        <span>Cargando…</span>
+      </div>
+
+      <!-- Botón Nueva Rama Principal -->
+      <button
+        id="btn-add-branch-header"
+        class="btn-primary"
+        title="Crear nueva rama principal"
+        aria-label="Nueva Rama Principal"
+        style="white-space:nowrap"
+      >
+        ⊕ Nueva Rama
+      </button>
+
+      <!-- Botón Catálogo de Plataformas -->
+      <button
+        id="btn-open-catalog"
+        class="btn-ghost"
+        title="Administrar catálogo de plataformas"
+        aria-label="Catálogo de plataformas"
+      >
+        ☰ Plataformas
+      </button>
+
+      <!-- Botón Importar JSON -->
+      <button
+        id="btn-import-branch"
+        class="btn-ghost"
+        title="Importar archivo JSON de rama"
+        aria-label="Importar rama JSON"
+      >
+        ⬆ Importar
+      </button>
+
+      <!-- Botón Resetear datos -->
+      <button
+        id="btn-reset-data"
+        class="btn-ghost"
+        title="Borrar todos los datos guardados y restaurar los datos de ejemplo"
+        aria-label="Resetear datos"
+        style="color:var(--accent-danger);border-color:rgba(139,64,64,0.3)"
+      >
+        ↺ Reset
+      </button>
+
+    </div>
+  </header>
+
+  <!-- Barra de Breadcrumb (Drill-Down) — oculta en nivel raíz -->
+  <nav id="breadcrumb-bar" class="hidden" aria-label="Ruta de navegación"></nav>
+
+  <!-- Resultados de búsqueda (overlay flotante bajo el header) -->
+  <div id="search-results" role="listbox" aria-label="Resultados de búsqueda"></div>
+
+  <!-- ══════════════════════════════════════════════════════
+       MAIN — Área de contenido principal
+  ══════════════════════════════════════════════════════ -->
+  <main id="app-main" role="main">
+
+    <!-- ── Vista Cuadrícula / Tarjetas ─────────────────── -->
+    <section id="grid-view" aria-label="Vista de tarjetas">
+      <div class="branches-grid" id="branches-grid">
+        <!-- Estado de carga inicial -->
+        <div class="loading-state" id="loading-indicator">
+          <span class="spinner"></span>
+          Cargando el directorio…
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Vista Canvas ─────────────────────────────────── -->
+    <section id="canvas-view" class="hidden" aria-label="Vista de árbol Canvas">
+
+      <!-- Lienzo principal -->
+      <canvas id="tree-canvas" aria-label="Árbol de enlaces Yggdrasil"></canvas>
+
+      <!-- Capa de nodos HTML superpuestos -->
+      <div id="canvas-nodes-layer" aria-hidden="true"></div>
+
+      <!-- Controles de navegación del Canvas -->
+      <div class="canvas-controls" role="toolbar" aria-label="Controles del lienzo">
+        <button id="btn-canvas-reset" title="Restablecer vista" aria-label="Restablecer vista">⌖</button>
+        <button id="btn-canvas-zoom-in" title="Acercar" aria-label="Acercar"
+          onclick="document.getElementById('tree-canvas').dispatchEvent(new WheelEvent('wheel', {deltaY: -100}))">+</button>
+        <button id="btn-canvas-zoom-out" title="Alejar" aria-label="Alejar"
+          onclick="document.getElementById('tree-canvas').dispatchEvent(new WheelEvent('wheel', {deltaY: 100}))">−</button>
+      </div>
+
+      <!-- Toggle guía de secuencia -->
+      <label class="sequence-toggle" for="sequence-toggle" title="Mostrar guía de ruta de lectura">
+        <input type="checkbox" id="sequence-toggle" checked>
+        Guía de secuencia
+      </label>
+
+    </section>
+
+  </main>
+
+  <!-- ══════════════════════════════════════════════════════
+       APP — Bundle único (funciona sin servidor, file://)
+  ══════════════════════════════════════════════════════ -->
+  <script src="js/app-bundle.js"></script>
+
+</body>
+</html>

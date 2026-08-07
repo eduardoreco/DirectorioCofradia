@@ -1,0 +1,42 @@
+{
+  "branchId": "rama_02",
+  "branchTitle": "Entretenimiento y Medios",
+  "thumbnail": null,
+  "subbranches": [
+    {
+      "subbranchId": "subrama_02_1",
+      "order": 1,
+      "subbranchTitle": "Música y Podcasts",
+      "thumbnail": null,
+      "subbranches": [],
+      "leaves": [
+        {
+          "leafId": "leaf_02_1_1",
+          "platformIdRef": "plat_spotify",
+          "targetUrl": "https://open.spotify.com/show/ejemplo",
+          "description": "Podcast recomendado",
+          "customThumbnail": null,
+          "autoThumbnailUrl": null
+        }
+      ]
+    },
+    {
+      "subbranchId": "subrama_02_2",
+      "order": 2,
+      "subbranchTitle": "Canales de Video",
+      "thumbnail": null,
+      "subbranches": [],
+      "leaves": [
+        {
+          "leafId": "leaf_02_2_1",
+          "platformIdRef": "plat_youtube",
+          "targetUrl": "https://youtube.com/c/ejemplo",
+          "description": "Canal educativo destacado",
+          "customThumbnail": null,
+          "autoThumbnailUrl": null
+        }
+      ]
+    }
+  ],
+  "leaves": []
+}

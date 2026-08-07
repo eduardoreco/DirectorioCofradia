@@ -1,0 +1,48 @@
+{
+  "version": "3.0",
+  "organization": {
+    "name": "Cofradia",
+    "logo": "assets/images/logo.svg"
+  },
+  "audit": {
+    "lastModified": "2026-08-04T21:10:00Z",
+    "modifiedBy": "Anónimo",
+    "changeDescription": "Inicialización del proyecto Yggdrasil"
+  },
+  "platformCatalog": [
+    {
+      "platformId": "plat_youtube",
+      "name": "YouTube",
+      "icon": "assets/icons/youtube.svg"
+    },
+    {
+      "platformId": "plat_web",
+      "name": "Sitio Web",
+      "icon": "assets/icons/web.svg"
+    },
+    {
+      "platformId": "plat_spotify",
+      "name": "Spotify",
+      "icon": "assets/icons/spotify.svg"
+    },
+    {
+      "platformId": "plat_github",
+      "name": "GitHub",
+      "icon": "assets/icons/github.svg"
+    }
+  ],
+  "mainBranchesIndex": [
+    {
+      "branchId": "rama_01",
+      "order": 1,
+      "title": "Recursos y Publicaciones",
+      "file": "data/branches/rama_01.json"
+    },
+    {
+      "branchId": "rama_02",
+      "order": 2,
+      "title": "Entretenimiento y Medios",
+      "file": "data/branches/rama_02.json"
+    }
+  ]
+}

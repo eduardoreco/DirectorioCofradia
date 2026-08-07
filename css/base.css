@@ -1,0 +1,186 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap');
+
+/* ==========================================================================
+   VARIABLES GLOBALES — PALETA INSTITUCIONAL (AZUL MARINO / ROJO / AMARILLO)
+   ========================================================================== */
+:root {
+  /* ── Tipografías ──────────────────────────────────────── */
+  --font-heading: 'Space Grotesk', sans-serif;
+  --font-body:    'Inter', sans-serif;
+
+  /* ── Fondos Estructurales (Azul Marino dominante) ──────── */
+  --bg-primary:   #0A192F;          /* Azul marino profundo — body / canvas */
+  --bg-card:      #112240;          /* Azul medio — tarjetas */
+  --bg-surface:   #1E3A8A;          /* Azul rey — contenedores, modales */
+  --bg-input:     #172A45;          /* Azul oscuro — inputs */
+  --bg-glass:     rgba(10, 25, 47, 0.92); /* Glassmorphism sobre base azul */
+
+  /* ── Texto ─────────────────────────────────────────────── */
+  --text-main:    #FFFFFF;          /* Blanco brillante — alto contraste */
+  --text-muted:   #FBBF24;          /* Amarillo cálido — labels / subtítulos */
+  --text-faint:   #94A3B8;          /* Gris azulado — metadatos */
+
+  /* ── Bordes y Separadores ──────────────────────────────── */
+  --border-color: rgba(251, 191, 36, 0.25); /* Borde sutil amarillo */
+  --border-hover: #F59E0B;                   /* Amarillo brillante en hover */
+
+  /* ── Acentos de Acción ─────────────────────────────────── */
+  --accent-primary:   #DC2626;      /* ROJO — botones primarios y CTAs */
+  --accent-primary-h: #EF4444;      /* Rojo hover */
+  --accent-secondary: #F59E0B;      /* AMARILLO — badges, iconos, destaques */
+  --accent-secondary-h: #FBBF24;    /* Amarillo hover */
+  --accent-danger:    #991B1B;      /* Rojo oscuro — acciones destructivas */
+  --accent-danger-h:  #B91C1C;
+  --accent-success:   #16A34A;      /* Verde operativo */
+
+  /* ── Fallback miniatura ─────────────────────────────────── */
+  --thumbnail-fallback: #1E3A8A;    /* Azul rey como fondo de respaldo */
+
+  /* ── Geometría ──────────────────────────────────────────── */
+  --radius:      8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --transition:  0.2s ease-in-out;
+  --ease-drill:  cubic-bezier(0.4, 0.0, 0.2, 1);
+  --header-height: 62px;
+  --breadcrumb-height: 44px;
+}
+
+/* ── Reset ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, .brand-name {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-main);
+}
+
+a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+a:hover { color: var(--accent-primary-h); }
+
+/* ── Botones ────────────────────────────────────────────── */
+button {
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: var(--radius);
+  transition: all var(--transition);
+}
+
+.btn-primary {
+  background: var(--accent-primary);
+  color: var(--text-main);
+  padding: 8px 16px;
+}
+.btn-primary:hover { background: var(--accent-primary-h); }
+
+.btn-danger {
+  background: var(--accent-danger);
+  color: #f0ede8;
+  padding: 8px 16px;
+}
+.btn-danger:hover { background: var(--accent-danger-h); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  padding: 7px 12px;
+  border: 1px solid var(--border-color);
+}
+.btn-ghost:hover {
+  border-color: var(--border-hover);
+  color: var(--text-main);
+  background: rgba(255,255,255,0.05);
+}
+
+.btn-icon {
+  background: transparent;
+  color: var(--text-faint);
+  padding: 5px 7px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+.btn-icon:hover {
+  background: var(--bg-surface);
+  color: var(--text-muted);
+}
+
+/* ── Utilidades ─────────────────────────────────────────── */
+.hidden { display: none !important; }
+
+/* ── Scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(251,191,36,0.18); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(251,191,36,0.35); }
+
+/* ── Toast Notifications ────────────────────────────────── */
+#toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  color: var(--text-main);
+  font-size: 13px;
+  padding: 10px 16px;
+  max-width: 340px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  pointer-events: all;
+  line-height: 1.5;
+}
+.toast.toast-show   { opacity: 1; transform: translateY(0); }
+.toast.toast-error  { border-left: 3px solid var(--accent-danger);   background: rgba(153,27,27,0.30); }
+.toast.toast-success{ border-left: 3px solid var(--accent-success);  background: rgba(22,163,74,0.20); }
+.toast.toast-info   { border-left: 3px solid var(--accent-secondary); background: rgba(245,158,11,0.15); }
+
+/* ── Animaciones Drill-Down ─────────────────────────────── */
+@keyframes drillIn {
+  from { opacity: 0; transform: scale(0.96) translateX(12px); }
+  to   { opacity: 1; transform: scale(1)    translateX(0); }
+}
+@keyframes drillOut {
+  from { opacity: 0; transform: scale(1.02) translateX(-12px); }
+  to   { opacity: 1; transform: scale(1)    translateX(0); }
+}
+
+.drill-enter {
+  animation: drillIn  280ms var(--ease-drill) both;
+}
+.drill-back {
+  animation: drillOut 260ms var(--ease-drill) both;
+}

@@ -1,0 +1,1000 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ════════════════════════════════════════════════════════════════
+  ESPECIFICACIONES TÉCNICAS — Proyecto Yggdrasil
+  Sistema de Directorio Visual e Interactivo de Enlaces
+  Organización  : Cofradia
+  Versión        : 3.1
+  Fecha          : 2026-08-04
+  Complementa    : docs/especificaciones-funcionales.xml
+  ════════════════════════════════════════════════════════════════
+-->
+<especificaciones-tecnicas
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  proyecto="Yggdrasil"
+  organizacion="Cofradia"
+  version="3.1"
+  fecha="2026-08-04"
+  complementa="docs/especificaciones-funcionales.xml">
+
+  <!-- ══════════════════════════════════════════════════════════
+       1. STACK TECNOLÓGICO
+  ══════════════════════════════════════════════════════════════ -->
+  <stack-tecnologico>
+
+    <capa nombre="Presentación">
+      <tecnologia nombre="HTML5"       version="Living Standard" rol="Estructura semántica del documento"/>
+      <tecnologia nombre="CSS3"        version="Living Standard" rol="Estilos, animaciones y Custom Properties"/>
+      <tecnologia nombre="Canvas API"  version="HTML5"           rol="Renderizado vectorial del árbol en vista Canvas"/>
+    </capa>
+
+    <capa nombre="Lógica de Aplicación">
+      <tecnologia nombre="JavaScript (ES5/ES2015+)" version="Vanilla JS"
+                  rol="Toda la lógica de negocio — sin frameworks ni librerías externas"/>
+      <tecnologia nombre="Patrón IIFE" version="—"
+                  rol="Encapsulación del bundle completo en un único scope privado"/>
+      <tecnologia nombre="HTML5 Drag and Drop API" version="Living Standard"
+                  rol="Motor de reordenamiento nativo sin dependencias"/>
+      <tecnologia nombre="WheelEvent API" version="Living Standard"
+                  rol="Zoom del canvas; los botones +/− del canvas despachan WheelEvent programáticamente"/>
+    </capa>
+
+    <capa nombre="Tipografías">
+      <tecnologia nombre="Space Grotesk" version="Variable" fuente="Google Fonts CDN"
+                  pesos="600,700" rol="Titulares, header y branding"/>
+      <tecnologia nombre="Inter"         version="Variable" fuente="Google Fonts CDN"
+                  pesos="400,500,600" rol="Cuerpo, tarjetas y formularios"/>
+    </capa>
+
+    <capa nombre="Persistencia">
+      <tecnologia nombre="Web Storage API — localStorage" version="HTML5"
+                  rol="Shadow-copy de todos los datos editados; clave prefijada ygg3_"/>
+      <tecnologia nombre="Blob API + URL.createObjectURL()" version="HTML5"
+                  rol="Generación y descarga de archivos JSON al disco del usuario"/>
+      <tecnologia nombre="FileReader API" version="HTML5"
+                  rol="Lectura de archivos JSON importados desde el disco"/>
+    </capa>
+
+    <capa nombre="Herramientas de Desarrollo">
+      <tecnologia nombre="Sin bundler"   rol="El bundle es resultado de escritura directa; cero dependencias de build"/>
+      <tecnologia nombre="Sin framework" rol="Vanilla JS puro — cero overhead de runtime"/>
+      <tecnologia nombre="Sin servidor"  rol="Apertura directa mediante protocolo file:// en el navegador"/>
+    </capa>
+
+    <dependencias-externas>
+      <dependencia tipo="cdn" nombre="Google Fonts" url="https://fonts.googleapis.com"
+                   condicional="true" fallback="sans-serif nativo del sistema operativo"
+                   nota="Requiere conexión a internet en el primer acceso para caché de fuentes"/>
+      <dependencia tipo="runtime" nombre="Ninguna" nota="No se usa npm, yarn, webpack, rollup, vite ni ningún otro bundler"/>
+    </dependencias-externas>
+
+  </stack-tecnologico>
+
+  <!-- ══════════════════════════════════════════════════════════
+       2. ARQUITECTURA DEL BUNDLE JS
+  ══════════════════════════════════════════════════════════════ -->
+  <arquitectura-bundle archivo="js/app-bundle.js">
+
+    <descripcion>
+      Archivo JavaScript único y autocontenido. Todos los módulos se declaran
+      como objetos literales dentro de un único IIFE (Immediately Invoked
+      Function Expression) en modo estricto. No utiliza import/export.
+      Compatible con protocolo file:// sin restricciones CORS.
+    </descripcion>
+
+    <patron-encapsulacion>
+      <nombre>IIFE (Immediately Invoked Function Expression)</nombre>
+      <sintaxis>(function () { 'use strict'; /* módulos */ })();</sintaxis>
+      <beneficio>Scope completamente privado — ninguna variable es global</beneficio>
+      <beneficio>Compatible con file:// sin errores CORS de ES Modules</beneficio>
+      <beneficio>Ejecutable directamente desde el tag script sin type="module"</beneficio>
+    </patron-encapsulacion>
+
+    <patron-modulos>
+      <nombre>Módulo Revelador (Revealing Module Pattern)</nombre>
+      <sintaxis>var NombreModulo = (function() { /* privado */ return { /* público */ }; })();</sintaxis>
+      <beneficio>API pública explícita — solo se expone lo necesario</beneficio>
+      <beneficio>Estado interno privado por closure — sin contaminación entre módulos</beneficio>
+    </patron-modulos>
+
+    <orden-declaracion>
+      <paso orden="1"  modulo="INITIAL_INDEX / INITIAL_BRANCHES" descripcion="Datos iniciales embebidos — fallback si localStorage está vacío"/>
+      <paso orden="2"  modulo="GitStorage"      descripcion="Capa de persistencia — debe inicializarse antes de cualquier lectura"/>
+      <paso orden="3"  modulo="SearchEngine"    descripcion="Motor de búsqueda — depende de la estructura de datos"/>
+      <paso orden="4"  modulo="DragOrderEngine" descripcion="Motor D&amp;D — independiente, sin dependencias de estado"/>
+      <paso orden="5"  modulo="CanvasEngine"    descripcion="Motor Canvas — requiere DOM (se inicializa en boot())"/>
+      <paso orden="6"  modulo="_navStack / helpers de navegación" descripcion="Estado global Drill-Down y funciones navRoot/navEnter/navTo/currentNode"/>
+      <paso orden="7"  modulo="TreeRenderer"    descripcion="Renderizador de tarjetas — requiere DragOrderEngine y navEnter"/>
+      <paso orden="8"  modulo="UIController"    descripcion="Controlador de modales — requiere GitStorage"/>
+      <paso orden="9"  modulo="esc() helper"    descripcion="Función global de escape HTML — usada por todos los módulos anteriores"/>
+      <paso orden="10" modulo="toast() + _toastContainer" descripcion="Sistema de notificaciones flotantes — independiente"/>
+      <paso orden="11" modulo="APP (Orquestador)" descripcion="Estado global _indexData, _branchesMap, boot(), bindHeader(), bindGrid(), renderSearch(), findNodeHelper()"/>
+    </orden-declaracion>
+
+    <estado-global>
+      <variable nombre="_indexData"   tipo="Object"  scope="APP" descripcion="Copia viva del index.json — mutado directamente por UIController"/>
+      <variable nombre="_branchesMap" tipo="Map"     scope="APP" descripcion="Map&lt;branchId, branchData&gt; — referencia compartida con UIController"/>
+      <variable nombre="_currentView" tipo="string"  scope="APP" valores="grid|canvas" descripcion="Vista activa actual"/>
+      <variable nombre="_eventsBound" tipo="boolean" scope="APP" descripcion="Guard para evitar registro doble de event listeners"/>
+      <variable nombre="_navStack"    tipo="Array"   scope="APP" descripcion="Pila de navegación Drill-Down; mutable por navEnter/navTo/navRoot"/>
+      <variable nombre="_animDir"     tipo="string"  scope="APP" valores="forward|back" descripcion="Dirección de animación para la próxima transición"/>
+      <variable nombre="_toastContainer" tipo="HTMLElement" scope="APP" descripcion="Referencia al #toast-container; creado lazy en la primera llamada a toast()"/>
+    </estado-global>
+
+    <metricas-bundle>
+      <lineas-codigo aproximadas="1122"/>
+      <tamanio-estimado unidad="KB" valor="~44" nota="Sin minificación ni compresión"/>
+      <dependencias-runtime>0</dependencias-runtime>
+    </metricas-bundle>
+
+  </arquitectura-bundle>
+
+  <!-- ══════════════════════════════════════════════════════════
+       3. ESPECIFICACIONES DE CADA MÓDULO
+  ══════════════════════════════════════════════════════════════ -->
+  <especificaciones-modulos>
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <modulo id="MOD-01" nombre="GitStorage" patron="Revealing Module">
+
+      <responsabilidad>
+        Abstracción completa de la capa de persistencia. Encapsula todas las
+        operaciones de lectura/escritura en localStorage y la generación de
+        descargas de archivos JSON.
+      </responsabilidad>
+
+      <constantes>
+        <constante nombre="P" valor="'ygg3_'" descripcion="Prefijo de namespace para todas las claves de localStorage"/>
+      </constantes>
+
+      <funciones-privadas>
+        <funcion nombre="k(id)" retorno="string"
+                 descripcion="Compone la clave completa: prefijo + id"/>
+        <funcion nombre="rd(id)" retorno="Object|null"
+                 descripcion="Lee y parsea JSON desde localStorage; captura excepciones silenciosamente"/>
+        <funcion nombre="wr(id, d)" retorno="void"
+                 descripcion="Serializa a JSON y escribe en localStorage; captura excepciones de quota excedida"/>
+      </funciones-privadas>
+
+      <api-publica>
+        <funcion nombre="loadIndex()" retorno="Object"
+                 descripcion="Lee el índice maestro. Orden: localStorage → INITIAL_INDEX embebido (deep copy)"/>
+        <funcion nombre="loadBranch(id)" retorno="Object|null"
+                 descripcion="Lee una rama por branchId. Orden: localStorage → INITIAL_BRANCHES embebido (deep copy)"/>
+        <funcion nombre="saveIndex(data)" retorno="void"
+                 descripcion="Serializa y escribe el índice maestro con clave ygg3___index__"/>
+        <funcion nombre="saveBranch(id, data)" retorno="void"
+                 descripcion="Serializa y escribe una rama con clave ygg3_{branchId}"/>
+        <funcion nombre="downloadJSON(filename, data)" retorno="void"
+                 descripcion="Crea un Blob application/json, genera una URL temporal, simula clic en &lt;a&gt; y revoca la URL"/>
+      </api-publica>
+
+      <notas-tecnicas>
+        <nota>Deep copy de datos embebidos mediante JSON.parse(JSON.stringify(x)) para evitar mutación de los objetos fuente</nota>
+        <nota>No se usa structuredClone() por compatibilidad con navegadores más antiguos</nota>
+        <nota>El prefijo ygg3_ diferencia esta versión de las versiones anteriores que usan un prefijo diferente</nota>
+      </notas-tecnicas>
+
+    </modulo>
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <modulo id="MOD-02" nombre="SearchEngine" patron="Revealing Module">
+
+      <responsabilidad>
+        Construcción y consulta de un índice de búsqueda plano en memoria.
+        Recorre recursivamente toda la jerarquía N-aria de nodos y hojas.
+      </responsabilidad>
+
+      <estado-interno>
+        <variable nombre="_i" tipo="Array" descripcion="Índice plano de todos los nodos y hojas; se reemplaza parcialmente en addBranch()"/>
+      </estado-interno>
+
+      <funciones-privadas>
+        <funcion nombre="_subs(bId, bTitle, subs, path)" retorno="void"
+                 descripcion="Recursiva: recorre subbranches[] N niveles construyendo la etiqueta pathLabel con separador ›"/>
+      </funciones-privadas>
+
+      <api-publica>
+        <funcion nombre="addBranch(b)" retorno="void"
+                 descripcion="Elimina entradas previas del mismo branchId y reindexea la rama completa con sus hijos recursivos"/>
+        <funcion nombre="search(query)" retorno="Array" limite="20 resultados"
+                 descripcion="Filtra el índice por subcadena (toLowerCase) en branchTitle, subbranchTitle, description, url, pathLabel"/>
+      </api-publica>
+
+      <estructura-entrada-indice>
+        <campo nombre="type"           valores="branch|subbranch|leaf"/>
+        <campo nombre="branchId"       tipo="string"  descripcion="ID de la rama raíz del elemento"/>
+        <campo nombre="subbranchId"    tipo="string"  nullable="true"/>
+        <campo nombre="subbranchTitle" tipo="string"  nullable="true"/>
+        <campo nombre="pathLabel"      tipo="string"  descripcion="Ruta completa: NivelA › NivelB › NivelC"/>
+        <campo nombre="leafId"         tipo="string"  nullable="true" descripcion="Solo presente si type=leaf"/>
+        <campo nombre="description"    tipo="string"  nullable="true" descripcion="Solo presente si type=leaf"/>
+        <campo nombre="url"            tipo="string"  nullable="true" descripcion="Solo presente si type=leaf"/>
+      </estructura-entrada-indice>
+
+      <complejidad>
+        <construccion>O(N) donde N = número total de nodos + hojas en todo el árbol</construccion>
+        <busqueda>O(N) búsqueda lineal; suficiente para el volumen esperado (&lt; 10.000 nodos)</busqueda>
+      </complejidad>
+
+    </modulo>
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <modulo id="MOD-03" nombre="DragOrderEngine" patron="Revealing Module">
+
+      <responsabilidad>
+        Implementación de arrastre y reordenamiento usando la API nativa
+        HTML5 Drag and Drop. Gestiona el ciclo completo de eventos y la
+        actualización de la propiedad order en los datos.
+      </responsabilidad>
+
+      <api-publica>
+        <funcion nombre="init(container, selector, onReorder)" retorno="Object{attach, refresh}">
+          <parametro nombre="container" tipo="HTMLElement" descripcion="Elemento padre cuyos hijos directos son arrastrables"/>
+          <parametro nombre="selector"  tipo="string"      descripcion="Selector CSS para filtrar hijos (ej: .node-card[data-type='branch'])"/>
+          <parametro nombre="onReorder" tipo="Function"    descripcion="Callback(newOrder: string[]) invocado tras cada drop exitoso"/>
+          <retorno>Objeto con attach(el) y refresh() para agregar items dinámicamente</retorno>
+        </funcion>
+        <funcion nombre="applyOrder(arr, idKey, newOrder)" retorno="Array">
+          <parametro nombre="arr"      tipo="Array"    descripcion="Array de objetos de datos a reordenar"/>
+          <parametro nombre="idKey"    tipo="string"   descripcion="Nombre de la propiedad ID en cada objeto (ej: 'branchId')"/>
+          <parametro nombre="newOrder" tipo="string[]" descripcion="IDs en el nuevo orden visual"/>
+          <retorno>El mismo array mutado, ordenado por order ascendente</retorno>
+        </funcion>
+      </api-publica>
+
+      <ciclo-eventos-drag>
+        <evento nombre="dragstart" handler="start"  descripcion="Registra el elemento origen; añade clase dragging; setData text/plain"/>
+        <evento nombre="dragover"  handler="over"   descripcion="preventDefault para permitir drop; gestiona clase drag-over visual"/>
+        <evento nombre="dragleave" handler="leave"  descripcion="Remueve clase drag-over del target"/>
+        <evento nombre="drop"      handler="drop"   descripcion="Reordena el DOM (insertBefore); invoca onReorder con el nuevo orden"/>
+        <evento nombre="dragend"   handler="end"    descripcion="Limpieza de clases dragging y drag-over en todos los items"/>
+      </ciclo-eventos-drag>
+
+      <logica-insercion>
+        <caso condicion="srcIndex > destIndex" accion="insertBefore(src, dest)     — el origen va antes del destino"/>
+        <caso condicion="srcIndex &lt; destIndex" accion="insertBefore(src, dest.nextSibling) — el origen va después del destino"/>
+      </logica-insercion>
+
+    </modulo>
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <modulo id="MOD-04" nombre="CanvasEngine" patron="Revealing Module">
+
+      <responsabilidad>
+        Renderizado del árbol completo en un elemento &lt;canvas&gt;.
+        Gestiona el layout posicional de nodos, el dibujado de conectores
+        bézier y la guía de secuencia. Implementa pan y zoom con
+        transformación global unificada en canvas y capa HTML superpuesta.
+      </responsabilidad>
+
+      <estado-interno>
+        <variable nombre="_cv"  tipo="HTMLCanvasElement" descripcion="Referencia al elemento canvas"/>
+        <variable nombre="_ctx" tipo="CanvasRenderingContext2D" descripcion="Contexto 2D del canvas"/>
+        <variable nombre="_nl"  tipo="HTMLElement" descripcion="Capa HTML superpuesta para nodos (#canvas-nodes-layer)"/>
+        <variable nombre="_data" tipo="Object" descripcion="{orgName, branches[]} — datos del árbol actual"/>
+        <variable nombre="_tr"  tipo="Object" descripcion="{x, y, scale} — transformación de pan/zoom. Valor inicial: {x:60, y:40, scale:1}"/>
+        <variable nombre="_pan" tipo="boolean" descripcion="Flag de estado de arrastre activo"/>
+        <variable nombre="_ps"  tipo="Object" descripcion="{x, y} — punto de inicio del arrastre actual (en coordenadas de pantalla menos _tr)"/>
+        <variable nombre="_np"  tipo="Map" descripcion="Map&lt;nodeId, {x, y}&gt; — posiciones calculadas en espacio-mundo (sin transformación)"/>
+        <variable nombre="_seq" tipo="boolean" descripcion="Flag de visibilidad de la guía de secuencia (default: true)"/>
+      </estado-interno>
+
+      <constantes-layout nombre="L">
+        <constante nombre="bx"  valor="220" unidad="px" descripcion="Offset X: raíz → rama principal"/>
+        <constante nombre="sx"  valor="200" unidad="px" descripcion="Offset X: rama → sub-rama"/>
+        <constante nombre="lx"  valor="180" unidad="px" descripcion="Offset X: sub-rama → hoja"/>
+        <constante nombre="vg"  valor="90"  unidad="px" descripcion="Separación vertical entre nodos"/>
+        <constante nombre="nw"  valor="180" unidad="px" descripcion="Ancho de nodo (para cálculo de posición de conectores)"/>
+        <constante nombre="nh"  valor="60"  unidad="px" descripcion="Alto de nodo (para centrado vertical de conectores)"/>
+      </constantes-layout>
+
+      <api-publica>
+        <funcion nombre="init(canvasEl, nodesLayerEl)" retorno="void"
+                 descripcion="Inicializa referencias, dimensiona el canvas, registra eventos resize/mousedown/mousemove/mouseup/wheel"/>
+        <funcion nombre="setData(orgName, branches)" retorno="void"
+                 descripcion="Carga el árbol de datos y llama a render()"/>
+        <funcion nombre="setShowSequence(bool)" retorno="void"
+                 descripcion="Activa/desactiva la guía de secuencia y re-renderiza"/>
+        <funcion nombre="resetView()" retorno="void"
+                 descripcion="Restaura _tr a {x:60, y:40, scale:1} y re-renderiza"/>
+        <funcion nombre="render()" retorno="void"
+                 descripcion="Ciclo de renderizado completo: clearRect → layout → conectores → guía de secuencia → sincronización HTML"/>
+      </api-publica>
+
+      <funciones-privadas>
+        <funcion nombre="_resize()" retorno="void"
+                 descripcion="Redimensiona el canvas al tamaño de su contenedor (parentElement.getBoundingClientRect) y re-renderiza"/>
+        <funcion nombre="_mk(type, title, id, x, y)" retorno="void"
+                 descripcion="Crea un .canvas-node (wrapper) con un .cnode hijo en la capa HTML; la posición se fija en _syncHtml()"/>
+        <funcion nombre="_syncHtml()" retorno="void"
+                 descripcion="Aplica la transformación _tr (pan+scale) a todos los .canvas-node como posición CSS (left/top) + transform scale"/>
+        <funcion nombre="_cv2(x1, y1, x2, y2)" retorno="void"
+                 descripcion="Dibuja una curva bézier cúbica en el canvas (ctx ya tiene translate+scale aplicado)"/>
+        <funcion nombre="_lines()" retorno="void"
+                 descripcion="Dibuja todos los conectores del árbol; se invoca dentro del bloque ctx.save/translate/scale/restore"/>
+        <funcion nombre="_drawSeq()" retorno="void"
+                 descripcion="Dibuja la guía de secuencia (líneas punteadas entre sub-ramas por orden); dentro del bloque save/restore"/>
+      </funciones-privadas>
+
+      <render-pipeline>
+        <paso orden="1" nombre="clearRect" descripcion="Limpia todo el canvas"/>
+        <paso orden="2" nombre="_np.clear() + _nl.innerHTML=''" descripcion="Resetea posiciones y destruye nodos HTML del ciclo anterior"/>
+        <paso orden="3" nombre="Layout vertical" descripcion="Itera branches → subbranches → leaves calculando coordenadas (x,y) en espacio-mundo, acumulando y"/>
+        <paso orden="4" nombre="_mk()" descripcion="Para cada nodo: crea .canvas-node + .cnode en la capa HTML (posición se fijará en _syncHtml)"/>
+        <paso orden="5" nombre="ctx.save() + translate + scale" descripcion="Aplica transformación global pan+zoom al contexto canvas"/>
+        <paso orden="6" nombre="_lines()" descripcion="Dibuja conectores bézier por tipo de relación"/>
+        <paso orden="7" nombre="_drawSeq()" descripcion="Dibuja líneas punteadas entre sub-ramas ordenadas si _seq=true"/>
+        <paso orden="8" nombre="ctx.restore()" descripcion="Restaura el contexto canvas al estado sin transformación"/>
+        <paso orden="9" nombre="_syncHtml()" descripcion="Posiciona todos los .canvas-node aplicando la misma transformación _tr como CSS"/>
+      </render-pipeline>
+
+      <curva-bezier>
+        <descripcion>Tipo cúbica con puntos de control horizontales para curvas S suaves</descripcion>
+        <formula>
+          cp = x1 + (x2 - x1) * 0.5
+          bezierCurveTo(cp, y1,  cp, y2,  x2, y2)
+        </formula>
+        <efecto>El control point único en posición media crea una curva S horizontal</efecto>
+      </curva-bezier>
+
+      <pan-zoom>
+        <pan>
+          <inicio>mousedown sobre el canvas cuando e.target === _cv; registra _ps = {x: clientX - _tr.x, y: clientY - _tr.y}</inicio>
+          <movimiento>mousemove en window — actualiza _tr.x/_tr.y como clientX/_ps.x, llama render()</movimiento>
+          <fin>mouseup en window — _pan = false</fin>
+        </pan>
+        <zoom>
+          <evento>wheel en canvas con passive:false para preventDefault()</evento>
+          <factor-acercar>1.1 por tick (deltaY negativo)</factor-acercar>
+          <factor-alejar>0.9 por tick (deltaY positivo)</factor-alejar>
+          <rango-minimo>0.2x</rango-minimo>
+          <rango-maximo>4.0x</rango-maximo>
+          <centrado-cursor>El zoom se calcula para que el punto bajo el cursor no se desplace: _tr.x = mx - (newScale/oldScale) * (mx - _tr.x)</centrado-cursor>
+        </zoom>
+      </pan-zoom>
+
+    </modulo>
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <modulo id="MOD-05" nombre="TreeRenderer" patron="Revealing Module">
+
+      <responsabilidad>
+        Generación del HTML de la vista Cuadrícula para el nivel activo de
+        la pila de navegación. Implementa el patrón Drill-Down: solo renderiza
+        los hijos directos del nodo activo. Soporta recursividad N-aria.
+      </responsabilidad>
+
+      <estado-interno>
+        <variable nombre="_container"    tipo="HTMLElement" descripcion="Referencia a #branches-grid — inyectada en init()"/>
+        <variable nombre="_onDataChange" tipo="Function"    descripcion="Callback para persistir cambios tras drag &amp; drop"/>
+      </estado-interno>
+
+      <api-publica>
+        <funcion nombre="init(containerEl, onDataChange)" retorno="void"
+                 descripcion="Inyección de dependencias — almacena container y callback"/>
+        <funcion nombre="renderLevel(indexData, branchesMap, catalog, navStack, animDir)" retorno="void"
+                 descripcion="Renderizado completo del nivel activo; aplica clase de animación drill-enter o drill-back"/>
+      </api-publica>
+
+      <funciones-privadas>
+        <funcion nombre="_nodeCard(child, depth, indexData, branchesMap, catalog)" retorno="HTMLElement"
+                 descripcion="Crea y devuelve el elemento .node-card completo para un nodo hijo"/>
+        <funcion nombre="_thumbHtml(src)" retorno="string"
+                 descripcion="Retorna HTML de miniatura: &lt;img&gt; si src existe, o SVG placeholder si no"/>
+        <funcion nombre="_platIconFallback(plat)" retorno="string"
+                 descripcion="Retorna HTML de &lt;img&gt; del icono de plataforma centrado (22×22px, opacity:0.65) para usar dentro de .leaf-thumbnail cuando no hay miniatura URL"/>
+      </funciones-privadas>
+
+      <algoritmo-renderLevel>
+        <paso orden="1" descripcion="Lee cur = navStack[navStack.length - 1] y depth = navStack.length - 1"/>
+        <paso orden="2" descripcion="Crea levelEl con clase drill-level + animación según animDir"/>
+        <paso orden="3" descripcion="Si depth &gt; 0: agrega level-header con botón ← Atrás, título y badge de profundidad"/>
+        <paso orden="4" descripcion="Calcula children[] y leaves[] según depth:
+          · depth=0 → all mainBranchesIndex entries mapeados a branchesMap
+          · depth&gt;0 → cur.nodeRef.subbranches[] y cur.nodeRef.leaves[]"/>
+        <paso orden="5" descripcion="BLOQUE 1 (hojas primero): Si depth &gt; 0 y/o hay leaves[], genera .leaves-section con .leaves-grid y btn-add-leaf-here"/>
+        <paso orden="6" descripcion="BLOQUE 2 (sub-ramas): Genera .nodes-grid; para cada child en children: crea .node-card vía _nodeCard()"/>
+        <paso orden="7" descripcion="Agrega .add-node-card CTA (nueva rama/sub-rama) al final del grid"/>
+        <paso orden="8" descripcion="container.innerHTML = '' + appendChild(levelEl)"/>
+        <paso orden="9" descripcion="Inicializa DragOrderEngine sobre el grid del nivel actual"/>
+      </algoritmo-renderLevel>
+
+      <generacion-nodeCard nombre="_nodeCard(child, depth, ...)">
+        <descripcion>Crea un elemento .node-card con dataset.depth para codificación de color</descripcion>
+        <clases-dinamicas>
+          <clase condicion="hasChildren = subs.length &gt; 0 || leaves.length &gt; 0" valor="has-children"/>
+          <clase atributo="data-type" valores="branch (depth=0) | sub (depth&gt;0)"/>
+          <clase atributo="data-depth" valores="0|1|2|3 (truncado a 3 para el CSS)"/>
+        </clases-dinamicas>
+        <estructura-html>
+          <bloque nombre="thumbnail" descripcion="_thumbHtml(child.thumbnail)"/>
+          <bloque nombre="card-header" descripcion="drag-handle + order-badge + title-group + card-actions (editar, exportar si isBranch, eliminar)"/>
+          <bloque nombre="card-children-count" descripcion="Contador de sub-ramas y hojas con ícono; visible si subCount &gt; 0 || leafCount &gt; 0"/>
+          <bloque nombre="card-footer" descripcion="btn-add-sub-to-node + btn-add-leaf-to-node"/>
+        </estructura-html>
+        <evento-drill-down>
+          <condicion>hasChildren === true</condicion>
+          <handler>click en card (fuera de button) → navEnter(branchData o child._nodeRef, child._branchId)</handler>
+        </evento-drill-down>
+      </generacion-nodeCard>
+
+    </modulo>
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <modulo id="MOD-06" nombre="UIController" patron="Revealing Module">
+
+      <responsabilidad>
+        Fábrica de modales para todas las operaciones CRUD sobre ramas, nodos,
+        hojas y el catálogo de plataformas. Gestiona la auditoría y dispara
+        notificaciones toast en cada operación exitosa.
+        No contiene lógica de renderizado de la vista principal.
+      </responsabilidad>
+
+      <estado-interno>
+        <variable nombre="_idx"   tipo="Object"   descripcion="Referencia viva a _indexData — compartida con el orquestador APP"/>
+        <variable nombre="_map"   tipo="Map"       descripcion="Referencia viva a _branchesMap — mutaciones son inmediatamente visibles"/>
+        <variable nombre="_onSave" tipo="Function" descripcion="Callback refresh() del orquestador — invocado tras cada operación exitosa"/>
+      </estado-interno>
+
+      <factoria-modal nombre="_m(title, body, foot, lg)">
+        <descripcion>Genera, monta y anima un modal genérico</descripcion>
+        <estructura-dom>
+          <elemento>.modal-overlay — fixed, z-index:500, opacity:0 → transition 0.18s</elemento>
+          <elemento>.modal — flex column, max-width:520px (lg: 720px), translateY(12px) → 0</elemento>
+          <elemento>.modal-header — título + botón ×</elemento>
+          <elemento>.modal-body — contenido dinámico con scroll</elemento>
+          <elemento>.modal-footer — botones de acción</elemento>
+        </estructura-dom>
+        <ciclo-vida>
+          <paso>document.body.appendChild(overlay)</paso>
+          <paso>requestAnimationFrame(() =&gt; overlay.classList.add('open')) — activa la transición</paso>
+          <paso>Al cerrar (_cl): classList.remove('open') → transitionend → overlay.remove()</paso>
+        </ciclo-vida>
+      </factoria-modal>
+
+      <funciones-privadas>
+        <funcion nombre="_badge()" retorno="void"
+                 descripcion="Actualiza el contenido de #audit-badge con author y fecha de _idx.audit formateada con toLocaleString('es')"/>
+        <funcion nombre="_audit(desc, author)" retorno="void"
+                 descripcion="Actualiza los 3 campos de auditoría, llama GitStorage.saveIndex() y dispara toast success"/>
+        <funcion nombre="_uid(prefix)" retorno="string"
+                 descripcion="Genera un ID único: prefix + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,6)"/>
+        <funcion nombre="_m(title, body, foot, lg)" retorno="HTMLElement"
+                 descripcion="Fábrica genérica de modal; retorna el elemento .modal-overlay para que el caller añada listeners"/>
+        <funcion nombre="_cl(overlay)" retorno="void"
+                 descripcion="Cierra el modal con animación; lo elimina del DOM en transitionend"/>
+        <funcion nombre="_v(overlay, type, msg)" retorno="void"
+                 descripcion="Inserta o reemplaza un .validation-msg (tipo: 'error'|'success') al inicio del modal-body"/>
+        <funcion nombre="_au()" retorno="string"
+                 descripcion="Retorna el HTML del row de autor (audit-author-row + audit-author-input) para incrustar en cualquier modal"/>
+        <funcion nombre="_findNode(subs, id)" retorno="Object|null"
+                 descripcion="Búsqueda DFS iterativa de un nodo por subbranchId en profundidad N-aria dentro de subs[]"/>
+      </funciones-privadas>
+
+      <funcion-auxiliar nombre="_audit(desc, author)">
+        <descripcion>Actualiza los 3 campos de auditoría, persiste y notifica al usuario</descripcion>
+        <campos-actualizados>
+          <campo>audit.lastModified = new Date().toISOString()</campo>
+          <campo>audit.modifiedBy   = author || 'Anónimo'</campo>
+          <campo>audit.changeDescription = desc || 'Cambio'</campo>
+        </campos-actualizados>
+        <efectos-secundarios>
+          <efecto>Llama _badge() para actualizar el #audit-badge en tiempo real</efecto>
+          <efecto>Llama GitStorage.saveIndex(_idx) para persistir</efecto>
+          <efecto>Llama toast('✓ ' + desc, 'success') para notificar al usuario</efecto>
+        </efectos-secundarios>
+      </funcion-auxiliar>
+
+      <api-publica>
+        <funcion nombre="init(idx, map, onSave)" descripcion="Inyecta las referencias al estado global y el callback de refresh; actualiza el badge"/>
+        <funcion nombre="openEditNodeModal(nodeId, branchId, isBranch)"/>
+        <funcion nombre="openAddBranchModal()"/>
+        <funcion nombre="openAddSubModal(parentId, branchId, isBranch)"/>
+        <funcion nombre="openAddLeafModal(parentId, branchId)"/>
+        <funcion nombre="openEditLeafModal(branchId, subbranchId, leafId)"/>
+        <funcion nombre="openDeleteModal(title, onConfirm)"/>
+        <funcion nombre="openCatalogModal()"/>
+        <funcion nombre="openImportModal()"/>
+      </api-publica>
+
+    </modulo>
+
+    <!-- ─────────────────────────────────────────────────────── -->
+    <modulo id="MOD-07" nombre="Toast Notifications" patron="Función + estado closure">
+
+      <responsabilidad>
+        Notificaciones de usuario no bloqueantes. Gestiona la creación lazy
+        del contenedor y el ciclo de vida de cada notificación individual.
+      </responsabilidad>
+
+      <estado-interno>
+        <variable nombre="_toastContainer" tipo="HTMLElement|null" scope="APP"
+                  descripcion="Referencia al #toast-container; null hasta la primera llamada a toast()"/>
+      </estado-interno>
+
+      <api-publica>
+        <funcion nombre="toast(msg, type)" retorno="void">
+          <parametro nombre="msg"  tipo="string" descripcion="Texto de la notificación"/>
+          <parametro nombre="type" tipo="string" valores="success|error|info" descripcion="Tipo visual; por defecto 'info'"/>
+        </funcion>
+      </api-publica>
+
+      <ciclo-vida-toast>
+        <paso orden="1">Crear _toastContainer si no existe (div#toast-container, appendChild a body)</paso>
+        <paso orden="2">Crear .toast.toast-{type} con textContent = msg; appendChild a _toastContainer</paso>
+        <paso orden="3">requestAnimationFrame: añadir .toast-show para activar la transición de entrada</paso>
+        <paso orden="4">setTimeout 3200ms: remover .toast-show para activar la transición de salida</paso>
+        <paso orden="5">transitionend (once): t.remove() para limpiar el DOM</paso>
+      </ciclo-vida-toast>
+
+    </modulo>
+
+  </especificaciones-modulos>
+
+  <!-- ══════════════════════════════════════════════════════════
+       4. PATRÓN DE NAVEGACIÓN DRILL-DOWN — MÁQUINA DE ESTADOS
+  ══════════════════════════════════════════════════════════════ -->
+  <maquina-estados-navegacion>
+
+    <descripcion>
+      La navegación Drill-Down se modela como una máquina de estados finita
+      donde el estado es la pila _navStack. Cada transición produce un
+      re-renderizado completo del nivel activo con animación directional.
+    </descripcion>
+
+    <estado-inicial>
+      _navStack = [{ id: '__root__', title: orgName, nodeRef: null, branchId: null }]
+      _animDir  = 'forward'
+    </estado-inicial>
+
+    <transiciones>
+      <transicion nombre="ENTER" trigger="Clic en tarjeta con hasChildren=true"
+                  animacion="drill-enter (280ms)"
+                  efecto="_navStack.push({id, title, nodeRef, branchId}); renderView()"/>
+      <transicion nombre="BACK"  trigger="Clic en botón ← Atrás dentro del level-header"
+                  animacion="drill-back (260ms)"
+                  efecto="navTo(navStack.length - 2)"/>
+      <transicion nombre="JUMP"  trigger="Clic en ítem del breadcrumb (índice &lt; actual)"
+                  animacion="drill-back (260ms)"
+                  efecto="_navStack = _navStack.slice(0, idx + 1); renderView()"/>
+      <transicion nombre="ROOT"  trigger="Eliminación del nodo activo; llamada explícita a navRoot(); click en resultado de búsqueda"
+                  animacion="drill-back (260ms)"
+                  efecto="_navStack = [nodo_raiz]; renderView()"/>
+    </transiciones>
+
+    <objeto-entrada-stack>
+      <campo nombre="id"       tipo="string"  descripcion="branchId o subbranchId del nodo activo"/>
+      <campo nombre="title"    tipo="string"  descripcion="Título visible para el breadcrumb"/>
+      <campo nombre="nodeRef"  tipo="Object"  nullable="true" descripcion="Referencia viva al objeto de datos (para acceso a subbranches/leaves)"/>
+      <campo nombre="branchId" tipo="string"  nullable="true" descripcion="ID de la rama raíz — necesario para GitStorage.saveBranch()"/>
+    </objeto-entrada-stack>
+
+    <invariantes>
+      <invariante>_navStack siempre tiene al menos 1 elemento (la raíz)</invariante>
+      <invariante>El breadcrumb se oculta cuando _navStack.length === 1</invariante>
+      <invariante>nodeRef en el elemento raíz siempre es null</invariante>
+      <invariante>branchId en el elemento raíz siempre es null</invariante>
+    </invariantes>
+
+  </maquina-estados-navegacion>
+
+  <!-- ══════════════════════════════════════════════════════════
+       5. SISTEMA DE EVENTOS — DELEGACIÓN
+  ══════════════════════════════════════════════════════════════ -->
+  <sistema-eventos>
+
+    <descripcion>
+      Se utiliza delegación de eventos (Event Delegation) en lugar de
+      listeners individuales para minimizar el número de handlers activos
+      y evitar memory leaks al re-renderizar el DOM.
+    </descripcion>
+
+    <delegados>
+      <delegado elemento="#app-header" evento="N/A"
+                descripcion="Cada botón del header tiene su propio listener directo; se registran UNA sola vez en boot() mediante el flag _eventsBound"/>
+      <delegado elemento="#grid-view" evento="click"
+                descripcion="Un único listener delegado maneja TODAS las acciones de la vista grid mediante e.target.closest()"/>
+    </delegados>
+
+    <guard-eventsBound>
+      <descripcion>
+        La variable _eventsBound previene que bindHeader() y bindGrid() se
+        ejecuten más de una vez aunque refresh() sea llamado repetidamente.
+      </descripcion>
+      <patron>
+        if (!_eventsBound) { bindHeader(); bindGrid(); _eventsBound = true; }
+      </patron>
+    </guard-eventsBound>
+
+    <resolucion-target descripcion="Jerarquía de resolución en el delegado de #grid-view">
+      <paso orden="1">e.target.closest('.add-node-card') → CTA nueva rama/sub-rama</paso>
+      <paso orden="2">e.target.closest('button') → clasificación por classList</paso>
+      <paso orden="3">Clasificación por clase: btn-edit-node, btn-export-branch, btn-delete-node, btn-add-sub-to-node, btn-add-leaf-to-node, btn-add-leaf-here, btn-edit-leaf, btn-delete-leaf</paso>
+    </resolucion-target>
+
+    <data-attributes-convencion>
+      <descripcion>Todos los botones de acción en el HTML generado dinámicamente transmiten contexto a través de data-* attributes</descripcion>
+      <atributo nombre="data-id"        descripcion="ID del nodo, hoja o plataforma sobre el que actúa el botón"/>
+      <atributo nombre="data-branch"    descripcion="branchId de la rama raíz — necesario para localizar el dato en _branchesMap"/>
+      <atributo nombre="data-subbranch" descripcion="subbranchId del nodo padre de la hoja — puede estar vacío si la hoja es directa de la rama"/>
+      <atributo nombre="data-is-branch" valores="0|1" descripcion="Flag para diferenciar rama principal de sub-rama en handlers genéricos"/>
+      <atributo nombre="data-title"     descripcion="Título legible para el modal de confirmación de eliminación"/>
+      <atributo nombre="data-type"      valores="branch|sub" descripcion="Tipo de nodo para el selector de DragOrderEngine"/>
+      <atributo nombre="data-depth"     valores="0|1|2|3"   descripcion="Profundidad visual del nodo para la codificación de color de borde"/>
+      <atributo nombre="data-add-level" descripcion="Nivel del grid donde vive la tarjeta CTA de nueva rama"/>
+      <atributo nombre="data-parent-id" descripcion="ID del nodo padre en el que se insertará el nuevo nodo hijo"/>
+      <atributo nombre="data-branch-id" descripcion="Variante de data-branch usada en CTAs y botones de nivel"/>
+    </data-attributes-convencion>
+
+    <helpers-globales>
+      <helper nombre="findNodeHelper(subs, id)" retorno="Object|null"
+              descripcion="Búsqueda DFS recursiva de un nodo por subbranchId en el árbol de subbranches[]; usada por bindGrid() para drill-down desde resultado de búsqueda"/>
+      <helper nombre="showError(msg)" retorno="void"
+              descripcion="Alias de toast(msg, 'error'); invocada desde el bloque catch de boot()"/>
+    </helpers-globales>
+
+  </sistema-eventos>
+
+  <!-- ══════════════════════════════════════════════════════════
+       6. ESPECIFICACIONES CSS
+  ══════════════════════════════════════════════════════════════ -->
+  <especificaciones-css>
+
+    <arquitectura>
+      <descripcion>CSS modular dividido en 5 archivos con responsabilidad única, cargados en orden específico en index.html</descripcion>
+      <orden-carga>
+        <archivo orden="1" nombre="css/base.css"      descripcion="Variables CSS (:root), paleta institucional, reset, body, tipografías globales, botones base, animaciones keyframes (drillIn, drillOut, spin), estilos toast"/>
+        <archivo orden="2" nombre="css/layout.css"    descripcion="Header glassmorphism, breadcrumb bar, área de contenido, overlay de búsqueda, estados de carga y vacío"/>
+        <archivo orden="3" nombre="css/tree-node.css" descripcion="node-card, level-header, nodes-grid, leaves-section, leaf-item"/>
+        <archivo orden="4" nombre="css/canvas.css"    descripcion="canvas-view, tree-canvas, canvas-nodes-layer, canvas-controls, nodos cnode"/>
+        <archivo orden="5" nombre="css/modal.css"     descripcion="modal-overlay, modal box, formularios, platform-picker, import-drop-zone"/>
+      </orden-carga>
+    </arquitectura>
+
+    <custom-properties>
+      <seccion nombre="Fondos — Azul marino institucional">
+        <propiedad nombre="--bg-primary"   valor="#0A192F"/>
+        <propiedad nombre="--bg-card"      valor="#112240"/>
+        <propiedad nombre="--bg-surface"   valor="#1E3A8A"/>
+        <propiedad nombre="--bg-input"     valor="#172A45"/>
+        <propiedad nombre="--bg-glass"     valor="rgba(10,25,47,0.92)"/>
+      </seccion>
+      <seccion nombre="Texto">
+        <propiedad nombre="--text-main"    valor="#FFFFFF"/>
+        <propiedad nombre="--text-muted"   valor="#FBBF24"/>
+        <propiedad nombre="--text-faint"   valor="#94A3B8"/>
+      </seccion>
+      <seccion nombre="Bordes">
+        <propiedad nombre="--border-color" valor="rgba(251,191,36,0.25)"/>
+        <propiedad nombre="--border-hover" valor="#F59E0B"/>
+      </seccion>
+      <seccion nombre="Acentos">
+        <propiedad nombre="--accent-primary"     valor="#DC2626"/>
+        <propiedad nombre="--accent-primary-h"   valor="#EF4444"/>
+        <propiedad nombre="--accent-secondary"   valor="#F59E0B"/>
+        <propiedad nombre="--accent-secondary-h" valor="#FBBF24"/>
+        <propiedad nombre="--accent-danger"      valor="#991B1B"/>
+        <propiedad nombre="--accent-danger-h"    valor="#B91C1C"/>
+        <propiedad nombre="--accent-success"     valor="#16A34A"/>
+        <propiedad nombre="--thumbnail-fallback" valor="#1E3A8A"/>
+      </seccion>
+      <seccion nombre="Geometría y Timing">
+        <propiedad nombre="--radius"             valor="8px"/>
+        <propiedad nombre="--radius-lg"          valor="12px"/>
+        <propiedad nombre="--radius-xl"          valor="16px"/>
+        <propiedad nombre="--transition"         valor="0.2s ease-in-out"/>
+        <propiedad nombre="--ease-drill"         valor="cubic-bezier(0.4, 0.0, 0.2, 1)"/>
+        <propiedad nombre="--header-height"      valor="62px"/>
+        <propiedad nombre="--breadcrumb-height"  valor="44px"/>
+      </seccion>
+    </custom-properties>
+
+    <animaciones-keyframes>
+      <keyframe nombre="drillIn" clase-uso="drill-enter" duracion="280ms" fill="both">
+        <frame posicion="from">opacity:0; transform:scale(0.96) translateX(12px)</frame>
+        <frame posicion="to">opacity:1; transform:scale(1) translateX(0)</frame>
+      </keyframe>
+      <keyframe nombre="drillOut" clase-uso="drill-back" duracion="260ms" fill="both">
+        <frame posicion="from">opacity:0; transform:scale(1.02) translateX(-12px)</frame>
+        <frame posicion="to">opacity:1; transform:scale(1) translateX(0)</frame>
+      </keyframe>
+      <keyframe nombre="spin" clase-uso=".spinner" duracion="0.7s" iteracion="infinite">
+        <frame posicion="to">transform:rotate(360deg)</frame>
+      </keyframe>
+    </animaciones-keyframes>
+
+    <layout-modelo>
+      <componente nombre="Header" modelo="Flexbox horizontal" notas="gap:12px; flex-wrap en .header-controls; backdrop-filter:blur(18px)"/>
+      <componente nombre="Breadcrumb" modelo="Flexbox horizontal" notas="overflow-x:auto; scrollbar oculto; posición fixed"/>
+      <componente nombre="nodes-grid" modelo="CSS Grid auto-fill" notas="minmax(240px,1fr); gap:16px; se adapta automáticamente al viewport"/>
+      <componente nombre="leaves-grid" modelo="CSS Grid auto-fill" notas="minmax(260px,1fr); gap:10px"/>
+      <componente nombre="Modal" modelo="Fixed overlay + Flexbox column" notas="max-width:520px (lg:720px); max-height:90vh; overflow-y:auto en .modal-body"/>
+      <componente nombre="Toast" modelo="Fixed column stack" notas="bottom:24px right:24px; gap:8px; pointer-events:none en contenedor, all en items individuales"/>
+    </layout-modelo>
+
+    <tecnica-glassmorphism elemento="#app-header">
+      <propiedad>background: var(--bg-glass) → rgba(10,25,47,0.92)</propiedad>
+      <propiedad>backdrop-filter: blur(18px)</propiedad>
+      <propiedad>-webkit-backdrop-filter: blur(18px) — prefijo para Safari</propiedad>
+      <propiedad>border-bottom: 1px solid var(--border-color)</propiedad>
+    </tecnica-glassmorphism>
+
+    <scrollbar-personalizada>
+      <descripcion>Scrollbar de 5px (webkit) con thumb color amarillo sutil</descripcion>
+      <propiedad selector="::-webkit-scrollbar" valor="width:5px; height:5px"/>
+      <propiedad selector="::-webkit-scrollbar-thumb" valor="background: rgba(251,191,36,0.18)"/>
+      <propiedad selector="::-webkit-scrollbar-thumb:hover" valor="background: rgba(251,191,36,0.35)"/>
+    </scrollbar-personalizada>
+
+  </especificaciones-css>
+
+  <!-- ══════════════════════════════════════════════════════════
+       7. ESTRUCTURA DOM — ÁRBOL HTML ESTÁTICO
+  ══════════════════════════════════════════════════════════════ -->
+  <estructura-dom>
+
+    <descripcion>
+      El HTML estático de index.html define los contenedores permanentes.
+      Todo el contenido dinámico (tarjetas, breadcrumb, modales, toasts) se genera
+      e inyecta por JavaScript en tiempo de ejecución.
+    </descripcion>
+
+    <arbol-dom>
+      <nodo tag="html" atributos="lang=es">
+        <nodo tag="head">
+          <nodo tag="meta" atributos="charset=UTF-8"/>
+          <nodo tag="meta" atributos="name=viewport, content=width=device-width,initial-scale=1.0"/>
+          <nodo tag="meta" atributos="name=description"/>
+          <nodo tag="link" repeticiones="5" descripcion="Hojas CSS: base, layout, tree-node, canvas, modal"/>
+        </nodo>
+        <nodo tag="body">
+          <nodo tag="header" atributos="id=app-header role=banner">
+            <nodo tag="a"      atributos="class=header-brand" descripcion="Logo + org-name"/>
+            <nodo tag="div"    atributos="class=header-search role=search" descripcion="search-input"/>
+            <nodo tag="div"    atributos="class=header-controls">
+              <nodo tag="div"    atributos="class=view-toggle role=group" descripcion="btn-view-grid, btn-view-canvas"/>
+              <nodo tag="div"    atributos="id=audit-badge class=audit-badge"/>
+              <nodo tag="button" atributos="id=btn-add-branch-header class=btn-primary"/>
+              <nodo tag="button" atributos="id=btn-open-catalog class=btn-ghost"/>
+              <nodo tag="button" atributos="id=btn-import-branch class=btn-ghost"/>
+              <nodo tag="button" atributos="id=btn-reset-data class=btn-ghost" descripcion="Color accent-danger; requiere confirmación"/>
+            </nodo>
+          </nodo>
+          <nodo tag="nav"    atributos="id=breadcrumb-bar class=hidden" descripcion="Generado dinámicamente por renderBreadcrumb()"/>
+          <nodo tag="div"    atributos="id=search-results role=listbox" descripcion="Generado dinámicamente por renderSearch()"/>
+          <nodo tag="main"   atributos="id=app-main role=main">
+            <nodo tag="section" atributos="id=grid-view aria-label=Vista de tarjetas">
+              <nodo tag="div" atributos="id=branches-grid class=branches-grid" descripcion="Contenedor inyectado por TreeRenderer.renderLevel()"/>
+            </nodo>
+            <nodo tag="section" atributos="id=canvas-view class=hidden">
+              <nodo tag="canvas" atributos="id=tree-canvas"/>
+              <nodo tag="div"    atributos="id=canvas-nodes-layer aria-hidden=true"/>
+              <nodo tag="div"    atributos="class=canvas-controls" descripcion="btn-canvas-reset, btn-canvas-zoom-in (+), btn-canvas-zoom-out (−)"/>
+              <nodo tag="label"  atributos="class=sequence-toggle" descripcion="sequence-toggle checkbox"/>
+            </nodo>
+          </nodo>
+          <nodo tag="script" atributos="src=js/app-bundle.js" descripcion="Bundle único sin type=module — compatible con file://"/>
+        </nodo>
+      </nodo>
+    </arbol-dom>
+
+    <contenido-generado-dinamicamente>
+      <generador modulo="TreeRenderer.renderLevel()"  inyecta-en="#branches-grid"       descripcion="level-header, leaves-section, nodes-grid"/>
+      <generador modulo="renderBreadcrumb()"          inyecta-en="#breadcrumb-bar"       descripcion="bc-item + bc-btn + bc-sep por cada entrada del _navStack"/>
+      <generador modulo="renderSearch()"              inyecta-en="#search-results"       descripcion="search-result-item por cada resultado del SearchEngine"/>
+      <generador modulo="UIController._m()"           inyecta-en="document.body"         descripcion="modal-overlay completo; se auto-elimina en transitionend"/>
+      <generador modulo="CanvasEngine._mk()"          inyecta-en="#canvas-nodes-layer"   descripcion=".canvas-node + .cnode por cada nodo del árbol"/>
+      <generador modulo="toast()"                     inyecta-en="#toast-container"      descripcion=".toast.toast-{type} por cada notificación; se auto-elimina"/>
+      <generador modulo="toast() (lazy)"              inyecta-en="document.body"         descripcion="#toast-container creado solo una vez en la primera llamada a toast()"/>
+    </contenido-generado-dinamicamente>
+
+  </estructura-dom>
+
+  <!-- ══════════════════════════════════════════════════════════
+       8. ESQUEMA DE PERSISTENCIA — localStorage
+  ══════════════════════════════════════════════════════════════ -->
+  <esquema-persistencia>
+
+    <descripcion>
+      Todas las modificaciones se almacenan en el localStorage del navegador.
+      El archivo index.html y los JSON en /data/ son la fuente original de
+      datos; localStorage actúa como capa de sobrescritura (override layer).
+    </descripcion>
+
+    <entradas-localStorage>
+      <entrada clave="ygg3___index__"      tipo="JSON" descripcion="Copia del index.json maestro con todos los cambios"/>
+      <entrada clave="ygg3_{branchId}"     tipo="JSON" descripcion="Copia individual de cada rama modificada (ej: ygg3_rama_01)"/>
+    </entradas-localStorage>
+
+    <flujo-lectura>
+      <paso orden="1">GitStorage.loadIndex() intenta leer ygg3___index__ de localStorage</paso>
+      <paso orden="2">Si existe → JSON.parse() y retorna</paso>
+      <paso orden="3">Si no existe → deep copy de INITIAL_INDEX embebido en el bundle</paso>
+      <paso orden="4">Mismo flujo para loadBranch(id) con ygg3_{id} y INITIAL_BRANCHES[id]</paso>
+    </flujo-lectura>
+
+    <flujo-escritura>
+      <paso orden="1">Operación de edición muta el objeto en memoria (_indexData o branchData)</paso>
+      <paso orden="2">Se invoca GitStorage.saveIndex() o GitStorage.saveBranch()</paso>
+      <paso orden="3">JSON.stringify() + localStorage.setItem() persiste el estado</paso>
+      <paso orden="4">_audit() actualiza los 3 campos de auditoría, dispara otro saveIndex() y un toast</paso>
+      <paso orden="5">_onSave() (= refresh()) re-renderiza la vista activa</paso>
+    </flujo-escritura>
+
+    <flujo-exportacion>
+      <paso orden="1">Usuario pulsa ⬇ en una tarjeta de rama</paso>
+      <paso orden="2">bindGrid() detecta clase btn-export-branch y lee _branchesMap.get(id)</paso>
+      <paso orden="3">GitStorage.downloadJSON(id+'.json', branchData) genera y descarga el archivo</paso>
+      <nota>El archivo descargado debe copiarse manualmente a data/branches/ para actualizar la fuente de datos</nota>
+    </flujo-exportacion>
+
+    <flujo-reseteo>
+      <paso orden="1">Usuario pulsa ↺ Reset en el header → bindHeader() llama UIController.openDeleteModal()</paso>
+      <paso orden="2">Confirmación → Object.keys(localStorage).filter(k.indexOf('ygg3_')===0).forEach(localStorage.removeItem)</paso>
+      <paso orden="3">toast('Datos restaurados. Recargando…', 'success')</paso>
+      <paso orden="4">setTimeout 900ms → window.location.reload()</paso>
+    </flujo-reseteo>
+
+    <limites-localstorage>
+      <limite nombre="Cuota típica" valor="5–10 MB por origen" nota="Suficiente para miles de ramas con hojas"/>
+      <limite nombre="Manejo de errores" valor="Try/catch silencioso en wr()" nota="Si la cuota se excede, la escritura falla silenciosamente — se recomienda exportar y limpiar"/>
+    </limites-localstorage>
+
+  </esquema-persistencia>
+
+  <!-- ══════════════════════════════════════════════════════════
+       9. SEGURIDAD — ESCAPE Y SANITIZACIÓN
+  ══════════════════════════════════════════════════════════════ -->
+  <seguridad>
+
+    <funcion-escape nombre="esc(s)" ubicacion="app-bundle.js — scope global IIFE">
+      <descripcion>
+        Función de escape HTML aplicada a TODOS los valores de usuario
+        antes de ser interpolados en innerHTML. Previene inyección XSS.
+      </descripcion>
+      <transformaciones>
+        <transformacion desde="&amp;"  hasta="&amp;amp;"/>
+        <transformacion desde="&lt;"   hasta="&amp;lt;"/>
+        <transformacion desde="&gt;"   hasta="&amp;gt;"/>
+        <transformacion desde="&quot;" hasta="&amp;quot;"/>
+        <transformacion desde="'"      hasta="&amp;#39;"/>
+      </transformaciones>
+      <uso-obligatorio>
+        Todos los campos de texto provenientes de: datos JSON cargados,
+        inputs de formularios en modales y parámetros de data-attributes
+        se procesan siempre con esc() antes de ser insertados en el DOM.
+      </uso-obligatorio>
+    </funcion-escape>
+
+    <politica-url>
+      <descripcion>Las URLs en hojas (leaf.targetUrl) se insertan en atributos href de elementos &lt;a&gt; con esc(). Los links se abren en target="_blank" con rel="noopener" para prevenir tabnapping.</descripcion>
+    </politica-url>
+
+    <politica-imagenes>
+      <descripcion>Las URLs de miniaturas se insertan en atributos src con esc() y llevan onerror para degradarse silenciosamente si la imagen falla.</descripcion>
+    </politica-imagenes>
+
+    <advertencias>
+      <advertencia>No existe autenticación ni autorización. El sistema está diseñado para uso interno en entornos de confianza.</advertencia>
+      <advertencia>Los datos almacenados en localStorage son accesibles por cualquier script del mismo origen.</advertencia>
+      <advertencia>La extracción de og:image no está activa; el campo autoThumbnailUrl debe rellenarse manualmente o con un backend propio.</advertencia>
+    </advertencias>
+
+  </seguridad>
+
+  <!-- ══════════════════════════════════════════════════════════
+       10. COMPATIBILIDAD DE NAVEGADORES
+  ══════════════════════════════════════════════════════════════ -->
+  <compatibilidad-navegadores>
+
+    <apis-requeridas>
+      <api nombre="localStorage"                soporte-minimo="IE8+"      disponibilidad="universal"/>
+      <api nombre="HTML5 Canvas 2D"             soporte-minimo="IE9+"      disponibilidad="universal"/>
+      <api nombre="HTML5 Drag and Drop API"     soporte-minimo="IE9+"      disponibilidad="universal"/>
+      <api nombre="CSS Custom Properties"       soporte-minimo="Edge 15+"  disponibilidad="todos los navegadores modernos"/>
+      <api nombre="CSS backdrop-filter"         soporte-minimo="Chrome 76+ / Safari 9+" disponibilidad="moderada" fallback="Fondo opaco sin blur si no soportado"/>
+      <api nombre="CSS Grid"                    soporte-minimo="Chrome 57+" disponibilidad="universal"/>
+      <api nombre="CSS Animation / @keyframes"  soporte-minimo="IE10+"     disponibilidad="universal"/>
+      <api nombre="Blob API + URL.createObjectURL" soporte-minimo="IE10+"  disponibilidad="universal"/>
+      <api nombre="FileReader API"              soporte-minimo="IE10+"     disponibilidad="universal"/>
+      <api nombre="Element.closest()"           soporte-minimo="Chrome 41+" disponibilidad="universal en navegadores modernos"/>
+      <api nombre="Map y Array.from()"          soporte-minimo="ES2015"    disponibilidad="universal en navegadores modernos"/>
+      <api nombre="WheelEvent constructor"      soporte-minimo="Chrome 55+" disponibilidad="universal en navegadores modernos" nota="Usado por los botones +/− del canvas"/>
+    </apis-requeridas>
+
+    <navegadores-probados>
+      <navegador nombre="Google Chrome"  version-minima="90+"  soporte="completo"/>
+      <navegador nombre="Mozilla Firefox" version-minima="88+" soporte="completo"/>
+      <navegador nombre="Microsoft Edge" version-minima="90+"  soporte="completo"/>
+      <navegador nombre="Safari"         version-minima="14+"  soporte="completo" nota="backdrop-filter requiere -webkit- prefix (ya incluido)"/>
+      <navegador nombre="Opera"          version-minima="76+"  soporte="completo"/>
+    </navegadores-probados>
+
+    <limitaciones-conocidas>
+      <limitacion navegador="Todos" descripcion="El protocolo file:// no permite fetch() de archivos locales en Chrome/Edge por políticas CORS — resuelto mediante datos embebidos en el bundle"/>
+      <limitacion navegador="Safari iOS" descripcion="localStorage tiene cuota reducida en modo privado — los cambios no persistirán si el usuario navega en incógnito"/>
+      <limitacion navegador="IE11" descripcion="No soportado — uso de arrow functions, Map, Array.from() y CSS Custom Properties requieren transpilación"/>
+    </limitaciones-conocidas>
+
+  </compatibilidad-navegadores>
+
+  <!-- ══════════════════════════════════════════════════════════
+       11. RENDIMIENTO Y OPTIMIZACIÓN
+  ══════════════════════════════════════════════════════════════ -->
+  <rendimiento>
+
+    <estrategia nombre="Delegación de Eventos">
+      <descripcion>Un único listener en #grid-view en lugar de N listeners individuales. Elimina la necesidad de remover/re-añadir listeners al re-renderizar el DOM.</descripcion>
+      <impacto>O(1) listeners independientemente del número de tarjetas renderizadas</impacto>
+    </estrategia>
+
+    <estrategia nombre="Re-render por Nivel">
+      <descripcion>El Drill-Down renderiza únicamente el nivel activo, no el árbol completo. La cantidad de nodos renderizados en pantalla es siempre los hijos directos del nodo activo.</descripcion>
+      <impacto>Rendimiento de renderizado independiente de la profundidad total del árbol</impacto>
+    </estrategia>
+
+    <estrategia nombre="Datos Embebidos">
+      <descripcion>Los datos iniciales se incrustan en el bundle JS, eliminando peticiones HTTP adicionales en el arranque y garantizando funcionamiento offline.</descripcion>
+      <impacto>0 peticiones de red al iniciar (excepto Google Fonts si no está en caché)</impacto>
+    </estrategia>
+
+    <estrategia nombre="Canvas Re-render Selectivo">
+      <descripcion>El CanvasEngine solo re-renderiza cuando se llama explícitamente a render() o setData(). No hay redraws periódicos ni requestAnimationFrame continuo.</descripcion>
+    </estrategia>
+
+    <estrategia nombre="requestAnimationFrame para Modales y Toasts">
+      <descripcion>La clase .open/.toast-show se añade en el siguiente frame tras appendChild para garantizar que la transición CSS se dispare correctamente (el navegador necesita un ciclo de layout).</descripcion>
+    </estrategia>
+
+    <estrategia nombre="Creación Lazy del Toast Container">
+      <descripcion>El #toast-container se crea solo en la primera llamada a toast(), evitando un nodo DOM innecesario si no se produce ninguna notificación durante la sesión.</descripcion>
+    </estrategia>
+
+    <metricas-objetivo>
+      <metrica nombre="Time to Interactive" objetivo="&lt; 200ms" nota="Datos embebidos; sin peticiones de red bloqueantes"/>
+      <metrica nombre="Nodos renderizados simultáneamente" objetivo="hijos directos del nivel activo" nota="Típicamente 2-20 tarjetas"/>
+      <metrica nombre="Tamaño del bundle" valor="~44 KB" nota="Sin minificar; la minificación reduciría a ~16 KB"/>
+    </metricas-objetivo>
+
+  </rendimiento>
+
+  <!-- ══════════════════════════════════════════════════════════
+       12. EXTENSIBILIDAD Y GUÍA DE MANTENIMIENTO
+  ══════════════════════════════════════════════════════════════ -->
+  <guia-mantenimiento>
+
+    <agregar-plataforma>
+      <paso orden="1">Crear el icono SVG en assets/icons/{nombre}.svg</paso>
+      <paso orden="2">En la app: abrir ☰ Plataformas → Agregar plataforma nueva</paso>
+      <paso orden="3">El cambio se persiste automáticamente en localStorage</paso>
+      <paso orden="4">Para hacerlo permanente: exportar data/index.json y actualizar el archivo</paso>
+    </agregar-plataforma>
+
+    <agregar-rama-permanente>
+      <paso orden="1">Crear el archivo data/branches/{branchId}.json siguiendo el esquema Node</paso>
+      <paso orden="2">Agregar la entrada en mainBranchesIndex de data/index.json con orden, title y file</paso>
+      <paso orden="3">Agregar el objeto de datos embebido en INITIAL_BRANCHES dentro de app-bundle.js</paso>
+    </agregar-rama-permanente>
+
+    <modificar-paleta>
+      <descripcion>Todos los colores están centralizados en las Custom Properties de :root en css/base.css. Modificar únicamente ese bloque.</descripcion>
+      <advertencia>No hardcodear colores en reglas CSS individuales — usar siempre variables</advertencia>
+    </modificar-paleta>
+
+    <agregar-modulo-js>
+      <paso orden="1">Declarar el módulo como var NuevoModulo = (function() { ... return {...}; })(); dentro del IIFE del bundle</paso>
+      <paso orden="2">Posicionarlo en el orden de declaración correcto según sus dependencias</paso>
+      <paso orden="3">Registrar su referencia en el Orquestador APP si requiere inicialización con el DOM</paso>
+    </agregar-modulo-js>
+
+    <convencion-ids>
+      <regla>branchId: snake_case, prefijo rama_ (ej: rama_recursos)</regla>
+      <regla>subbranchId: generado por _uid('sub') = sub_{timestamp36}_{random4}</regla>
+      <regla>leafId: generado por _uid('leaf') = leaf_{timestamp36}_{random4}</regla>
+      <regla>platformId: snake_case, prefijo plat_ (ej: plat_youtube)</regla>
+    </convencion-ids>
+
+  </guia-mantenimiento>
+
+</especificaciones-tecnicas>
